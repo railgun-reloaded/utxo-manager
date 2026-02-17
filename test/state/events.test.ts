@@ -1,11 +1,16 @@
-import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { UTXO } from '../../src/state/models'
-import type { NullifierEvent } from '../../src/state/events'
-import { createEmptyState, addUTXO, addUTXOs } from '../../src/state'
-import { applyNullifierEvents, handleReorg } from '../../src/state/events'
+import { describe, it } from 'node:test'
 
-function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
+import { addUTXO, addUTXOs, createEmptyState } from '../../src/state'
+import type { NullifierEvent } from '../../src/state/events'
+import { applyNullifierEvents, handleReorg } from '../../src/state/events'
+import type { UTXO } from '../../src/state/models'
+
+/**
+ *
+ * @param overrides
+ */
+function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
   return {
     commitment: `commitment_${Math.random().toString(36).slice(2)}`,
     nullifier: `nullifier_${Math.random().toString(36).slice(2)}`,

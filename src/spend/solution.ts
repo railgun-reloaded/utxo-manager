@@ -1,29 +1,31 @@
-
 // we start off with a spend intent, this is used to determine the solution goal.
 // lets say we start off with ALL utxos (all tokens, and need to pick through);
 
-import type { SpendIntent, SpendInput, SpendTreeOutput, SpendTreeSolutions, BadSpendOutput } from "./models";
-import { filterZeroUTXOs, getEfficentSolution, getTreeInputs } from "./util";
+import type { BadSpendOutput, SpendInput, SpendIntent, SpendTreeOutput, SpendTreeSolutions } from './models'
+import { filterZeroUTXOs, getEfficentSolution, getTreeInputs } from './util'
 
-
-// alter this function to handle same token, 'new solution' 
-// technically each 'input' becomes a desired 'output solution' 
+// alter this function to handle same token, 'new solution'
+// technically each 'input' becomes a desired 'output solution'
+/**
+ *
+ * @param intent
+ * @param utxos
+ * @param isComplex
+ */
 const getSolutionInputs = (intent: SpendIntent, utxos: SpendInput[], isComplex = false) => {
-  (isComplex)
   // NEED TO RETHINK THIS, so if we are now handling 'duplicates' as extra solutions, we need to think or restructure that idea.
   // as the 'first solution' needs to reduce the inputs from the incoming utxos, otherwise they both could spend
-  // from the same tree? 
-  const tokens = new Set("");
-  intent.recipients.forEach(r => tokens.add(r.tokenAddress));
-
+  // from the same tree?
+  const tokens = new Set('')
+  intent.recipients.forEach(r => tokens.add(r.tokenAddress))
 
   const inputs: SpendInput[][] = []
   tokens.forEach(token => {
-    const _inputs = utxos.filter(utxo => utxo.tokenAddress == token);
-    inputs.push(_inputs);
+    const _inputs = utxos.filter(utxo => utxo.tokenAddress === token)
+    inputs.push(_inputs)
   })
   // utxos.filter(utxo => tokens.has(utxo.tokenAddress));
-  return inputs;
+  return inputs
 }
 
 // const calculateSolutions = (intent: SpendIntent, utxos: SpendInput[]) => {
@@ -35,41 +37,45 @@ const getSolutionInputs = (intent: SpendIntent, utxos: SpendInput[], isComplex =
 // }
 
 // tmp solution for checking used commitments.
+/**
+ *
+ * @param intent
+ * @param utxos
+ * @param isComplex
+ */
 const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex = false): (SpendTreeOutput | undefined)[] => {
   // need to filter out 'used' utxos
-  const _raw = getSolutionInputs(intent, utxos, isComplex);
+  const _raw = getSolutionInputs(intent, utxos, isComplex)
 
-  const solutions: (SpendTreeOutput | BadSpendOutput)[] = [];
+  const solutions: (SpendTreeOutput | BadSpendOutput)[] = []
   _raw.forEach((raw: SpendInput[]) => {
-
     const inputs = filterZeroUTXOs(raw)
-    const { availableTrees, sortedInputs } = getTreeInputs(inputs, intent.type);
+    const { availableTrees, sortedInputs } = getTreeInputs(inputs, intent.type)
 
-
-    const treeSolutions: SpendTreeSolutions = {};
+    const treeSolutions: SpendTreeSolutions = {}
     const currentTokenAddress = inputs[0]?.tokenAddress
     Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
-      const treeValue = availableTrees[treeNumber] ?? 0n;
+      const treeValue = availableTrees[treeNumber] ?? 0n
 
-      const filteredRecipients = intent.recipients.filter(r => r.tokenAddress == currentTokenAddress);
-      const intentTotal = filteredRecipients.reduce((left, right) => left + right.amount, 0n);
+      const filteredRecipients = intent.recipients.filter(r => r.tokenAddress === currentTokenAddress)
+      const intentTotal = filteredRecipients.reduce((left, right) => left + right.amount, 0n)
       if (treeValue > 0n) {
         // console.log("TREE HAS VALUE", treeValue)
         const treeOutput: SpendTreeOutput = {
           inputs: [],
           outputs: [],
-        };
+        }
         // const diff = treeValue - intentTotal;
         if (treeValue > intentTotal) {
           // we have enough in this tree lets calculate.
-          let filledAmount = 0n;
+          let filledAmount = 0n
           while (filledAmount < intentTotal) {
-            const input = treeInputs.pop();
+            const input = treeInputs.pop()
             if (!input) {
-              throw new Error(`No more input UTXO in tree ${treeNumber}, solution not found.`);
+              throw new Error(`No more input UTXO in tree ${treeNumber}, solution not found.`)
             }
-            filledAmount += input.value;
-            treeOutput.inputs.push(input);
+            filledAmount += input.value
+            treeOutput.inputs.push(input)
           }
           // if we get here, it means we have enough to fill the spendIntent, lets add the recipients to the outputs,
           // and handle any change.
@@ -80,31 +86,30 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
               railgunAddress: recipient.railgunAddress
             })
           })
-          const changeAmount = filledAmount - intentTotal;
+          const changeAmount = filledAmount - intentTotal
           if (changeAmount > 0n) {
             treeOutput.outputs.push({
               value: changeAmount,
               railgunAddress: intent.changeAddress
             })
           }
-          treeSolutions[treeNumber] = treeOutput;
+          treeSolutions[treeNumber] = treeOutput
         }
         //  else {
         //   // console.log('Diff', diff)
 
         // }
       }
-    });
+    })
 
-    // if we get here and solution is undefined, we should see if 
+    // if we get here and solution is undefined, we should see if
     const efficienctSolution =
-      getEfficentSolution(treeSolutions, intent);
+      getEfficentSolution(treeSolutions, intent)
     // if (!efficienctSolution) {
     //   // if we are here, we dont have enough funds across a single tree.
     //   // we should complex-spend across multi-tree
 
-
-    //   // there is a condition prior to reaching this stage, 
+    //   // there is a condition prior to reaching this stage,
     //   // and that is 'enough funds on a single tree' but not within the correct limitations of nullifier count.
     //   // so we then preceed this current phase: detection with handling these.
     //   // we will need to create multiple solutions per tree first, and if this fails we attempt:
@@ -113,7 +118,7 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
     //   // console.log(treeSolutions)
 
     //   // split the intents up for now by 2n
-    //   // hack it for now... and uhm we now just submit it twice and 
+    //   // hack it for now... and uhm we now just submit it twice and
     //   const newIntent: SpendIntent = {
     //     changeAddress: intent.changeAddress,
     //     recipients: [],
@@ -185,8 +190,7 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
   // let undefinedfound = false;
   solutions.forEach(_a => {
     if ('error' in _a) {
-      const _intent = _a.intent;
-
+      const _intent = _a.intent
 
       // console.log("ERROR IN ", _intent)
 
@@ -204,7 +208,7 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
         type: intent.type
       }
       _intent.recipients.forEach((r) => {
-        const halved = r.amount / 2n;
+        const halved = r.amount / 2n
         const halvedRecipient = {
           tokenAddress: r.tokenAddress,
           railgunAddress: r.railgunAddress,
@@ -217,16 +221,15 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
           amount: r.amount - halved
           // TODO: THIS IS IMPORTANT TO COME BACK TO, this logic is not sound. need to amount - halved, to find actual remainder.
         }
-        newIntent.recipients.push(halvedRecipient);
-        secondIntent.recipients.push(secondRecipient);
+        newIntent.recipients.push(halvedRecipient)
+        secondIntent.recipients.push(secondRecipient)
       })
-      const a = calculateSolution(newIntent, utxos, true);
+      const a = calculateSolution(newIntent, utxos, true)
       // check for solution,
-      const usedInputs = new Set("")
+      const usedInputs = new Set('')
       for (const ab of a) {
-
         if (!ab) {
-          throw new Error("No AA solution found");
+          throw new Error('No AA solution found')
         }
         ab.inputs.forEach(i => usedInputs.add(`${i.leafIndex}:${i.treeNumber}`))
         // usedInputs.add(...ab.inputs)
@@ -234,13 +237,13 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
       }
       // filter out the used inputs into the new utxos
       const futxos = utxos.filter(spend => {
-        return !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`);
+        return !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`)
       })
       const b = calculateSolution(secondIntent, futxos, true)
 
       for (const bb of b) {
         if (!bb) {
-          throw new Error("No BB solution found");
+          throw new Error('No BB solution found')
         }
         solutions.push(bb)
       }
@@ -254,8 +257,7 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
   //   // if we are here, we dont have enough funds across a single tree.
   //   // we should complex-spend across multi-tree
 
-
-  //   // there is a condition prior to reaching this stage, 
+  //   // there is a condition prior to reaching this stage,
   //   // and that is 'enough funds on a single tree' but not within the correct limitations of nullifier count.
   //   // so we then preceed this current phase: detection with handling these.
   //   // we will need to create multiple solutions per tree first, and if this fails we attempt:
@@ -264,7 +266,7 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
   //   // console.log(treeSolutions)
 
   //   // split the intents up for now by 2n
-  //   // hack it for now... and uhm we now just submit it twice and 
+  //   // hack it for now... and uhm we now just submit it twice and
   //   const newIntent: SpendIntent = {
   //     changeAddress: intent.changeAddress,
   //     recipients: [],
@@ -328,11 +330,11 @@ const calculateSolution = (intent: SpendIntent, utxos: SpendInput[], isComplex =
 
   // }
   // filter undefineds
-  const filteredSolutions = solutions.filter(s => !("error" in s));
+  const filteredSolutions = solutions.filter(s => !('error' in s))
   // filteredSolutions.forEach(s => {
   //   console.log('solution', s)
   // })
-  return filteredSolutions as SpendTreeOutput[];
+  return filteredSolutions as SpendTreeOutput[]
 }
 
-export { calculateSolution };
+export { calculateSolution }

@@ -12,6 +12,9 @@
   },
   "license": "MIT",
   "author": "RAILGUN Project Contributors",
+  "engines": {
+    "node": ">=22"
+  },
   "main": "src/index.js",
   "directories": {
     "test": "test"

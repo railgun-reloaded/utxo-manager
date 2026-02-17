@@ -1,9 +1,14 @@
-import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { UTXO, NullifierEvent } from '../../src'
+import { describe, it } from 'node:test'
+
+import type { NullifierEvent, UTXO } from '../../src'
 import { NullifierIndexer } from '../../src'
 
-function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
+/**
+ *
+ * @param overrides
+ */
+function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
   return {
     commitment: `commitment_${Math.random().toString(36).slice(2)}`,
     nullifier: `nullifier_${Math.random().toString(36).slice(2)}`,

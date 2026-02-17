@@ -6,7 +6,12 @@ export interface NullifierUpdate {
   blockNumber?: bigint
 }
 
-export function applyNullifierUpdates(
+/**
+ *
+ * @param state
+ * @param updates
+ */
+export function applyNullifierUpdates (
   state: UTXOState,
   updates: Iterable<NullifierUpdate>
 ): UTXOState {

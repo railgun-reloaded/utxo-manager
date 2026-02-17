@@ -4,7 +4,7 @@ import { applyNullifierUpdates } from './nullifiers'
 /**
  * Represents a nullifier event from the blockchain.
  */
-export interface NullifierEvent {
+interface NullifierEvent {
   /** The nullifier hash that was revealed */
   nullifier: string
   /** Transaction ID where this nullifier was spent */
@@ -15,18 +15,16 @@ export interface NullifierEvent {
 
 /**
  * Applies nullifier events from the scanner to mark UTXOs as spent.
- *
  * @param state - Current UTXO state
  * @param events - Nullifier events from scanner
  * @returns New state with matching UTXOs marked as spent
- *
  * @example
  * const events = [
  *   { nullifier: '0xabc...', txid: '0x123...', blockNumber: 1000n }
  * ]
  * const newState = applyNullifierEvents(state, events)
  */
-export function applyNullifierEvents(
+function applyNullifierEvents (
   state: UTXOState,
   events: NullifierEvent[]
 ): UTXOState {
@@ -36,18 +34,16 @@ export function applyNullifierEvents(
 /**
  * Handles a chain reorganization by reverting spent status for UTXOs
  * that were marked spent in blocks after the reorg point.
- *
  * @param state - Current UTXO state
  * @param reorgBlockNumber - Block number where reorg occurred (exclusive -
  *                           UTXOs spent AT this block are kept,
  *                           UTXOs spent AFTER are reverted)
  * @returns New state with affected UTXOs marked as unspent
- *
  * @example
  * // If chain reorgs at block 1000, revert any UTXOs spent in blocks > 1000
  * const newState = handleReorg(state, 1000n)
  */
-export function handleReorg(
+function handleReorg (
   state: UTXOState,
   reorgBlockNumber: bigint
 ): UTXOState {
@@ -82,3 +78,5 @@ export function handleReorg(
     nullifiers: newNullifiers
   }
 }
+
+export { applyNullifierEvents, handleReorg, type NullifierEvent }

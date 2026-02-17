@@ -1,20 +1,25 @@
-import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { UTXO } from '../../src/state/models'
+import { describe, it } from 'node:test'
+
 import {
-  createEmptyState,
   addUTXO,
   addUTXOs,
-  markSpent,
-  setSyncedBlock,
-  getUTXO,
+  createEmptyState,
+  deserializeState,
   getSpendableUTXOs,
+  getUTXO,
   isSpent,
+  markSpent,
   serializeState,
-  deserializeState
+  setSyncedBlock
 } from '../../src/state'
+import type { UTXO } from '../../src/state/models'
 
-function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
+/**
+ *
+ * @param overrides
+ */
+function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
   return {
     commitment: `commitment_${Math.random().toString(36).slice(2)}`,
     nullifier: `nullifier_${Math.random().toString(36).slice(2)}`,
