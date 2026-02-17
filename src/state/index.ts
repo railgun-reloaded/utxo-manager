@@ -1,4 +1,5 @@
 import type { UTXO, UTXOState, SerializedUTXO, SerializedUTXOState } from './models'
+import { applyNullifierUpdates } from './nullifiers'
 
 /**
  * Creates an empty UTXO state.
@@ -27,10 +28,7 @@ export function createEmptyState(): UTXOState {
  * const newState = addUTXO(state, utxo)
  */
 export function addUTXO(state: UTXOState, utxo: UTXO): UTXOState {
-  return {
-    ...state,
-    utxos: [...state.utxos, utxo]
-  }
+  return addUTXOs(state, [utxo])
 }
 
 /**
@@ -68,29 +66,10 @@ export function markSpent(
   txid: string,
   blockNumber?: bigint
 ): UTXOState {
-  const newNullifiers = new Set(state.nullifiers)
-  newNullifiers.add(nullifier)
-
-  const newUtxos = state.utxos.map(utxo => {
-    if (utxo.nullifier === nullifier && !utxo.spent) {
-      const updated: UTXO = {
-        ...utxo,
-        spent: true,
-        spentTxid: txid
-      }
-      if (blockNumber !== undefined) {
-        updated.spentBlockNumber = blockNumber
-      }
-      return updated
-    }
-    return utxo
-  })
-
-  return {
-    ...state,
-    utxos: newUtxos,
-    nullifiers: newNullifiers
-  }
+  const update = blockNumber === undefined
+    ? { nullifier, txid }
+    : { nullifier, txid, blockNumber }
+  return applyNullifierUpdates(state, [update])
 }
 
 /**
@@ -105,13 +84,8 @@ export function markSpent(
  * const newState = applyNullifiers(state, ['0xabc...', '0xdef...'])
  */
 export function applyNullifiers(state: UTXOState, nullifiers: string[]): UTXOState {
-  let newState = state
-
-  for (const nullifier of nullifiers) {
-    newState = markSpent(newState, nullifier, 'unknown')
-  }
-
-  return newState
+  const updates = nullifiers.map(nullifier => ({ nullifier, txid: 'unknown' }))
+  return applyNullifierUpdates(state, updates)
 }
 
 /**

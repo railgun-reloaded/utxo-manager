@@ -1,4 +1,5 @@
 import type { UTXOState } from './models'
+import { applyNullifierUpdates } from './nullifiers'
 
 /**
  * Represents a nullifier event from the blockchain.
@@ -29,37 +30,7 @@ export function applyNullifierEvents(
   state: UTXOState,
   events: NullifierEvent[]
 ): UTXOState {
-  // Build new nullifiers set
-  const newNullifiers = new Set(state.nullifiers)
-  for (const event of events) {
-    newNullifiers.add(event.nullifier)
-  }
-
-  // Create a map of nullifier -> event for efficient lookup
-  const eventMap = new Map<string, NullifierEvent>()
-  for (const event of events) {
-    eventMap.set(event.nullifier, event)
-  }
-
-  // Update UTXOs
-  const newUtxos = state.utxos.map(utxo => {
-    const event = eventMap.get(utxo.nullifier)
-    if (event && !utxo.spent) {
-      return {
-        ...utxo,
-        spent: true,
-        spentTxid: event.txid,
-        spentBlockNumber: event.blockNumber
-      }
-    }
-    return utxo
-  })
-
-  return {
-    ...state,
-    utxos: newUtxos,
-    nullifiers: newNullifiers
-  }
+  return applyNullifierUpdates(state, events)
 }
 
 /**
