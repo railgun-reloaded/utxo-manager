@@ -58,10 +58,7 @@ abstract class BaseSolver<
       if (efficiencyCheck) {
         bestEfficiency = efficiency
         bestSolution = treeSolution
-        return
-      }
-
-      if (efficiency === bestEfficiency && bestSolution) {
+      } else if (efficiency === bestEfficiency && bestSolution) {
         const changeOutput = treeSolution.outputs.find(
           (output) => getOutputAddress(output) === changeAddress
         )

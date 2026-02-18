@@ -119,4 +119,53 @@ describe("UTXO-Spending Solution", () => {
     // assert(solution.outputs[0]?.value === desiredSolution.amount, "Solution amount should match desired amount.");
   });
 
+  it("Should pick the most efficient solution and prefer larger change on ties.", () => {
+    const changeAddress = "0zkaddressChange";
+    const recipientAddress = "0zkaddressRecipient";
+    const desiredSolution: SpendingSolutionInput = {
+      recipientAddress,
+      inputs: [
+        { commitmentIndex: 0n, treeNumber: 1n, value: 6n },
+        { commitmentIndex: 1n, treeNumber: 1n, value: 6n },
+        { commitmentIndex: 2n, treeNumber: 2n, value: 9n },
+        { commitmentIndex: 3n, treeNumber: 2n, value: 11n },
+      ],
+      amount: 10n,
+      type: SpendingSolution.Simple,
+      changeAddress,
+    };
+
+    const solution = getSpendingSolution(desiredSolution);
+    assert(solution, "Solution should be defined.");
+    assert.equal(solution.inputs[0]?.treeNumber, 2n, "Should select tree with larger change.");
+
+    const changeOutput = solution.outputs.find(
+      (output) => output.recipientAddress === changeAddress,
+    );
+    assert.equal(changeOutput?.value, 10n, "Should prefer solution with larger change.");
+  });
+
+  it("Should choose the last solution if it has better efficiency.", () => {
+    const changeAddress = "0zkaddressChange";
+    const recipientAddress = "0zkaddressRecipient";
+    const desiredSolution: SpendingSolutionInput = {
+      recipientAddress,
+      inputs: [
+        { commitmentIndex: 0n, treeNumber: 1n, value: 3n },
+        { commitmentIndex: 1n, treeNumber: 1n, value: 3n },
+        { commitmentIndex: 2n, treeNumber: 1n, value: 4n },
+        { commitmentIndex: 3n, treeNumber: 2n, value: 5n },
+        { commitmentIndex: 4n, treeNumber: 2n, value: 5n },
+      ],
+      amount: 10n,
+      type: SpendingSolution.Simple,
+      changeAddress,
+    };
+
+    const solution = getSpendingSolution(desiredSolution);
+    assert(solution, "Solution should be defined.");
+    assert.equal(solution.inputs.length, 2, "Should choose the more efficient 2-input solution.");
+    assert.equal(solution.inputs[0]?.treeNumber, 2n, "Should select the later tree with better efficiency.");
+  });
+
 });
