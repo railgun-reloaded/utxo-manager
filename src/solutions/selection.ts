@@ -22,15 +22,18 @@ const findExactMatch = <T extends ValueInput>(
   if (single) return [single];
   if (maxInputs < 2) return undefined;
 
-  const seen = new Map<bigint, T>();
+  const seen = new Map<bigint, T[]>();
   for (const input of inputs) {
     const needed = target - input.value;
-    const pair = seen.get(needed);
-    if (pair) {
-      return [pair, input];
+    const bucket = seen.get(needed);
+    if (bucket && bucket.length > 0) {
+      return [bucket[0]!, input];
     }
-    if (!seen.has(input.value)) {
-      seen.set(input.value, input);
+    const sameBucket = seen.get(input.value);
+    if (sameBucket) {
+      sameBucket.push(input);
+    } else {
+      seen.set(input.value, [input]);
     }
   }
   return undefined;

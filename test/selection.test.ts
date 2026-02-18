@@ -57,4 +57,16 @@ describe("selectInputsForTarget ordering", () => {
     assert.ok(result, "sortFn should drive selection order.");
     assert.ok(result?.total >= target);
   });
+
+  it("Should handle duplicate values for exact pair matches", () => {
+    const inputs = [
+      { value: 3n, id: "a" },
+      { value: 3n, id: "b" },
+    ];
+
+    const result = selectInputsForTarget(inputs, 6n, 2);
+    assert.ok(result, "Should find a pair using duplicate values.");
+    assert.equal(result?.inputs.length, 2);
+    assert.notEqual(result?.inputs[0], result?.inputs[1]);
+  });
 });
