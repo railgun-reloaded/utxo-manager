@@ -67,4 +67,4 @@ main();
 
 ## License
 
-MIT
+See [LICENSE](LICENSE).
