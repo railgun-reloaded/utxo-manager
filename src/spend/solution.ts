@@ -2,19 +2,28 @@ import type {
   SpendIntent,
   SpendInput,
   SpendTreeOutput,
-  SpendTreeSolutions,
   BadSpendOutput,
+  SpendTransaction,
 } from "./models";
-import { filterZeroUTXOs, getEfficentSolution, getTreeInputs } from "./util";
+import type { SolveParams, SolveResult } from "../interfaces";
+import { BaseSolver } from "../base-solver";
+import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from "../solutions/utxos";
 import { selectInputsForTarget } from "../solutions/selection";
-import { MAX_INPUTS } from "../solutions/nullifiers";
+import { MAX_INPUTS, isValidInputOutputCount } from "../solutions/nullifiers";
+import { SpendingSolution } from "../models";
 
-interface ISpendSolutionSolver {
-  solve(intent: SpendIntent, utxos: SpendInput[], isComplex?: boolean): SpendTreeOutput[];
-}
+/**
+ * Railgun spend solver (multi-recipient, single-token per solution).
+ */
+class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOutput> {
+  readonly name = "railgun";
 
-class SpendSolutionSolver implements ISpendSolutionSolver {
-  solve(intent: SpendIntent, utxos: SpendInput[], isComplex = false): SpendTreeOutput[] {
+  solve(params: SolveParams): SolveResult {
+    if (params.kind !== "railgun") {
+      throw new Error("RailgunSolver expects params.kind === 'railgun'");
+    }
+
+    const { intent, utxos, isComplex = false } = params;
     const rawInputs = this.getSolutionInputs(intent, utxos, isComplex);
     const solutions: (SpendTreeOutput | BadSpendOutput)[] = [];
 
@@ -22,8 +31,14 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
       const inputs = filterZeroUTXOs(raw);
       if (inputs.length === 0) return;
 
-      const { availableTrees, sortedInputs } = getTreeInputs(inputs, intent.type);
-      const treeSolutions: SpendTreeSolutions = {};
+      const sortFn =
+        intent.type === SpendingSolution.Consolidation
+          ? sortUTXOsByDescendingValue
+          : sortUTXOsByAscendingValue;
+      const preferHigherEfficiency = intent.type === SpendingSolution.Consolidation;
+
+      const { availableTrees, sortedInputs } = this.getTreeInputs(inputs, sortFn);
+      const treeSolutions: SpendTreeOutput[] = [];
       const currentTokenAddress = inputs[0]?.tokenAddress;
       const filteredRecipients = intent.recipients.filter(
         (recipient) => recipient.tokenAddress === currentTokenAddress,
@@ -53,14 +68,25 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
           });
         }
 
-        treeSolutions[treeNumber] = treeOutput;
+        treeSolutions.push(treeOutput);
       });
 
-      const efficientSolution = getEfficentSolution(treeSolutions, intent);
-      solutions.push(efficientSolution);
+      const efficientSolution = this.pickBestSolution(
+        treeSolutions,
+        intent.changeAddress,
+        (output) => output.railgunAddress,
+        preferHigherEfficiency,
+        isValidInputOutputCount,
+      );
+
+      if (efficientSolution) {
+        solutions.push(efficientSolution);
+      } else {
+        solutions.push({ error: true, intent });
+      }
     });
 
-    return this.resolveComplexSolutions(utxos, solutions, isComplex);
+    return this.resolveComplexSolutions(utxos, solutions);
   }
 
   private getSolutionInputs(
@@ -81,7 +107,6 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
   private resolveComplexSolutions(
     utxos: SpendInput[],
     solutions: (SpendTreeOutput | BadSpendOutput)[],
-    _isComplex: boolean,
   ): SpendTreeOutput[] {
     solutions.forEach((solution) => {
       if (!("error" in solution)) return;
@@ -89,7 +114,13 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
       const failingIntent = solution.intent;
       const { splitIntent, remainderIntent } = this.splitIntent(failingIntent);
 
-      const firstSolutions = this.solve(splitIntent, utxos, true);
+      const firstSolutions = this.solve({
+        kind: "railgun",
+        intent: splitIntent,
+        utxos,
+        isComplex: true,
+      }) as SpendTreeOutput[];
+
       const usedInputs = new Set<string>();
       firstSolutions.forEach((solutionPart) => {
         solutionPart.inputs.forEach((input) => {
@@ -101,7 +132,13 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
       const remainingUtxos = utxos.filter(
         (spend) => !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`),
       );
-      const secondSolutions = this.solve(remainderIntent, remainingUtxos, true);
+      const secondSolutions = this.solve({
+        kind: "railgun",
+        intent: remainderIntent,
+        utxos: remainingUtxos,
+        isComplex: true,
+      }) as SpendTreeOutput[];
+
       secondSolutions.forEach((solutionPart) => {
         solutions.push(solutionPart);
       });
@@ -140,15 +177,19 @@ class SpendSolutionSolver implements ISpendSolutionSolver {
   }
 }
 
-const defaultSpendSolver = new SpendSolutionSolver();
+const defaultRailgunSolver = new RailgunSolver();
 
 const calculateSolution = (
   intent: SpendIntent,
   utxos: SpendInput[],
   isComplex = false,
 ): SpendTreeOutput[] => {
-  return defaultSpendSolver.solve(intent, utxos, isComplex);
+  return defaultRailgunSolver.solve({
+    kind: "railgun",
+    intent,
+    utxos,
+    isComplex,
+  }) as SpendTreeOutput[];
 };
 
-export { calculateSolution, SpendSolutionSolver };
-export type { ISpendSolutionSolver };
+export { calculateSolution, RailgunSolver };

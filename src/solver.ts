@@ -4,109 +4,97 @@ import {
   SpendingSolution,
   type Input,
 } from "./models";
+import type { SolveParams, SolveResult } from "./interfaces";
+import { BaseSolver } from "./base-solver";
 import {
   filterZeroUTXOs,
-  groupInputsByTree,
   sortUTXOsByAscendingValue,
   sortUTXOsByDescendingValue,
 } from "./solutions/utxos";
 import { isValidInputOutputCount, MAX_INPUTS } from "./solutions/nullifiers";
 import { selectInputsForTarget } from "./solutions/selection";
 
-const pickBestSolution = (
-  treeSolutions: OutputSolution[],
-  solution: SpendingSolutionInput,
-  preferHigherEfficiency: boolean,
-): OutputSolution | undefined => {
-  let bestSolution: OutputSolution | undefined;
-  let bestEfficiency = preferHigherEfficiency ? 0 : Infinity;
+/**
+ * Greedy single-token solver.
+ */
+class GreedySolver extends BaseSolver<
+  Input,
+  OutputSolution["outputs"][number],
+  OutputSolution
+> {
+  readonly name = "greedy";
 
-  treeSolutions.forEach((treeSolution) => {
-    const inputCount = treeSolution.inputs.length;
-    const outputCount = treeSolution.outputs.length;
-    const efficiency = inputCount / outputCount;
-
-    const efficiencyCheck = preferHigherEfficiency
-      ? efficiency > bestEfficiency
-      : efficiency < bestEfficiency;
-
-    if (efficiencyCheck) {
-      bestEfficiency = efficiency;
-      bestSolution = treeSolution;
-      return;
+  solve(params: SolveParams): SolveResult {
+    if (params.kind !== "greedy") {
+      throw new Error("GreedySolver expects params.kind === 'greedy'");
     }
 
-    if (efficiency === bestEfficiency && bestSolution) {
-      const changeOutput = treeSolution.outputs.find(
-        (output) => output.recipientAddress === solution.changeAddress,
-      );
-      const currentChange = changeOutput?.value || 0n;
+    const solution = params.solution;
+    if (!solution.type) {
+      solution.type = SpendingSolution.Simple;
+    }
 
-      const bestChangeOutput = bestSolution.outputs.find(
-        (output) => output.recipientAddress === solution.changeAddress,
-      );
-      const bestChange = bestChangeOutput?.value || 0n;
+    if (solution.amount <= 0n) return undefined;
 
-      if (currentChange > bestChange) {
-        bestSolution = treeSolution;
+    const filteredInputs = filterZeroUTXOs(solution.inputs);
+    if (filteredInputs.length === 0) return undefined;
+
+    const sortFn =
+      solution.type === SpendingSolution.Consolidation
+        ? sortUTXOsByDescendingValue
+        : sortUTXOsByAscendingValue;
+    const preferHigherEfficiency = solution.type === SpendingSolution.Consolidation;
+
+    const { availableTrees, sortedInputs } = this.getTreeInputs(filteredInputs, sortFn);
+    const treeSolutions: OutputSolution[] = [];
+
+    Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
+      const treeValue = availableTrees[treeNumber] ?? 0n;
+      if (treeValue < solution.amount) return;
+
+      const selection = selectInputsForTarget(treeInputs, solution.amount, MAX_INPUTS);
+      if (!selection) return;
+
+      const outputs = [
+        {
+          value: solution.amount,
+          recipientAddress: solution.recipientAddress,
+        },
+      ];
+
+      const change = selection.total - solution.amount;
+      if (change > 0n) {
+        outputs.push({
+          value: change,
+          recipientAddress: solution.changeAddress,
+        });
       }
-    }
-  });
 
-  return bestSolution;
-};
+      if (!isValidInputOutputCount(selection.inputs.length, outputs.length)) return;
+
+      treeSolutions.push({
+        inputs: selection.inputs,
+        outputs,
+      });
+    });
+
+    return this.pickBestSolution(
+      treeSolutions,
+      solution.changeAddress,
+      (output) => output.recipientAddress,
+      preferHigherEfficiency,
+      isValidInputOutputCount,
+    );
+  }
+}
+
+const defaultGreedySolver = new GreedySolver();
 
 const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | undefined => {
-  if (!solution.type) {
-    solution.type = SpendingSolution.Simple;
-  }
-
-  if (solution.amount <= 0n) return undefined;
-
-  const filteredInputs = filterZeroUTXOs(solution.inputs);
-  if (filteredInputs.length === 0) return undefined;
-
-  const sortFn =
-    solution.type === SpendingSolution.Consolidation
-      ? sortUTXOsByDescendingValue
-      : sortUTXOsByAscendingValue;
-  const preferHigherEfficiency = solution.type === SpendingSolution.Consolidation;
-
-  const { availableTrees, sortedInputs } = groupInputsByTree(filteredInputs, sortFn);
-  const treeSolutions: OutputSolution[] = [];
-
-  Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
-    const treeValue = availableTrees[treeNumber] ?? 0n;
-    if (treeValue < solution.amount) return;
-
-    const selection = selectInputsForTarget(treeInputs, solution.amount, MAX_INPUTS);
-    if (!selection) return;
-
-    const outputs = [
-      {
-        value: solution.amount,
-        recipientAddress: solution.recipientAddress,
-      },
-    ];
-
-    const change = selection.total - solution.amount;
-    if (change > 0n) {
-      outputs.push({
-        value: change,
-        recipientAddress: solution.changeAddress,
-      });
-    }
-
-    if (!isValidInputOutputCount(selection.inputs.length, outputs.length)) return;
-
-    treeSolutions.push({
-      inputs: selection.inputs,
-      outputs,
-    });
-  });
-
-  return pickBestSolution(treeSolutions, solution, preferHigherEfficiency);
+  return defaultGreedySolver.solve({ kind: "greedy", solution }) as
+    | OutputSolution
+    | undefined;
 };
 
-export { getSpendingSolution, SpendingSolution };
+export { getSpendingSolution, SpendingSolution, GreedySolver };
 export type { SpendingSolutionInput, Input };
