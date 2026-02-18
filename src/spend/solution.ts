@@ -49,7 +49,12 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
         const treeValue = availableTrees[treeNumber] ?? 0n;
         if (treeValue < intentTotal) return;
 
-        const selection = selectInputsForTarget(treeInputs, intentTotal, MAX_INPUTS);
+        const selection = selectInputsForTarget(
+          treeInputs,
+          intentTotal,
+          MAX_INPUTS,
+          sortFn,
+        );
         if (!selection) return;
 
         const treeOutput: SpendTreeOutput = {

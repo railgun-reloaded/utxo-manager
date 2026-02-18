@@ -52,7 +52,12 @@ class GreedySolver extends BaseSolver<
       const treeValue = availableTrees[treeNumber] ?? 0n;
       if (treeValue < solution.amount) return;
 
-      const selection = selectInputsForTarget(treeInputs, solution.amount, MAX_INPUTS);
+      const selection = selectInputsForTarget(
+        treeInputs,
+        solution.amount,
+        MAX_INPUTS,
+        sortFn,
+      );
       if (!selection) return;
 
       const outputs = [

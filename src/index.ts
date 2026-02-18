@@ -11,6 +11,7 @@ export { GreedySolver } from './solver'
 export { RailgunSolver } from './spend/solution'
 export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
 export { selectInputsForTarget, findExactMatch } from './solutions/selection'
+export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
 
 /**
  * Create a solver instance by type.

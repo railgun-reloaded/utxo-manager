@@ -36,21 +36,27 @@ const findExactMatch = <T extends ValueInput>(
   return undefined;
 };
 
+/**
+ * Select inputs that cover the target value.
+ * If sortFn is provided, inputs are ordered deterministically before selection.
+ */
 const selectInputsForTarget = <T extends ValueInput>(
   inputs: T[],
   target: bigint,
   maxInputs: number,
+  sortFn?: (left: T, right: T) => number,
 ): SelectionResult<T> | undefined => {
   if (target <= 0n || maxInputs <= 0) return undefined;
 
-  const exact = findExactMatch(inputs, target, maxInputs);
+  const orderedInputs = sortFn ? [...inputs].sort(sortFn) : inputs;
+  const exact = findExactMatch(orderedInputs, target, maxInputs);
   if (exact) {
     return { inputs: exact, total: sumValues(exact) };
   }
 
   const selected: T[] = [];
   let total = 0n;
-  for (const input of inputs) {
+  for (const input of orderedInputs) {
     selected.push(input);
     total += input.value;
     if (total >= target) break;
