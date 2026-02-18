@@ -1,3 +1,7 @@
+import type { UTXOSolver } from './interfaces'
+import { GreedySolver } from './solver'
+import { RailgunSolver } from './spend/solution'
+
 export * from './solver'
 export * from './models'
 export * from './spend'
@@ -6,3 +10,11 @@ export { BaseSolver } from './base-solver'
 export { GreedySolver } from './solver'
 export { RailgunSolver } from './spend/solution'
 export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
+export { selectInputsForTarget, findExactMatch } from './solutions/selection'
+
+/**
+ * Create a solver instance by type.
+ */
+export function createSolver (type: 'greedy' | 'railgun' = 'railgun'): UTXOSolver {
+  return type === 'greedy' ? new GreedySolver() : new RailgunSolver()
+}
