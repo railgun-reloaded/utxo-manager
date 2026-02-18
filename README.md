@@ -1,11 +1,11 @@
-# @railgun-reloaded/utxo-solver
+# @railgun-reloaded/utxo-manager
 
 A simple module for UTXO selection and spend intent solving in RAILGUN Reloaded.
 
 ## Install
 
 ```bash
-npm install @railgun-reloaded/utxo-solver
+npm install @railgun-reloaded/utxo-manager
 ```
 
 ## Example Usage
@@ -13,7 +13,7 @@ npm install @railgun-reloaded/utxo-solver
 ### Greedy Solver (single-token)
 
 ```ts
-import { GreedySolver, SpendingSolution } from "@railgun-reloaded/utxo-solver";
+import { GreedySolver, SpendingSolution } from "@railgun-reloaded/utxo-manager";
 
 function main() {
   const solver = new GreedySolver();
@@ -40,7 +40,7 @@ main();
 ### Railgun Solver (multi-recipient)
 
 ```ts
-import { RailgunSolver, SpendingSolution } from "@railgun-reloaded/utxo-solver";
+import { RailgunSolver, SpendingSolution } from "@railgun-reloaded/utxo-manager";
 
 function main() {
   const solver = new RailgunSolver();

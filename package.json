@@ -1,14 +1,14 @@
 {
-  "name": "@railgun-reloaded/utxo-solver",
+  "name": "@railgun-reloaded/utxo-manager",
   "version": "0.0.1",
-  "description": "UTXO algorithmic solver for selecting spending-solutions.",
-  "homepage": "https://github.com/railgun-reloaded/utxo-solver#readme",
+  "description": "UTXO manager and solver for selecting spending-solutions.",
+  "homepage": "https://github.com/railgun-reloaded/utxo-manager#readme",
   "bugs": {
-    "url": "https://github.com/railgun-reloaded/utxo-solver/issues"
+    "url": "https://github.com/railgun-reloaded/utxo-manager/issues"
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/railgun-reloaded/utxo-solver.git"
+    "url": "git+https://github.com/railgun-reloaded/utxo-manager.git"
   },
   "license": "MIT",
   "author": "RAILGUN Project Contributors",
