@@ -1,98 +1,49 @@
-import { type SpendingSolutionInput, type OutputSolution, SpendingSolution, type Input } from "./models"
+import {
+  type SpendingSolutionInput,
+  type OutputSolution,
+  SpendingSolution,
+  type Input,
+} from "./models";
+import {
+  filterZeroUTXOs,
+  groupInputsByTree,
+  sortUTXOsByAscendingValue,
+  sortUTXOsByDescendingValue,
+} from "./solutions/utxos";
+import { isValidInputOutputCount, MAX_INPUTS } from "./solutions/nullifiers";
+import { selectInputsForTarget } from "./solutions/selection";
 
-const getSpendingSolution = (
-  solution: SpendingSolutionInput
-): OutputSolution => {
+const pickBestSolution = (
+  treeSolutions: OutputSolution[],
+  solution: SpendingSolutionInput,
+  preferHigherEfficiency: boolean,
+): OutputSolution | undefined => {
+  let bestSolution: OutputSolution | undefined;
+  let bestEfficiency = preferHigherEfficiency ? 0 : Infinity;
 
-  // default spending solution is
-  if (!solution.type) {
-    solution.type = SpendingSolution.Simple
-  }
-
-  // calculate the shortest path based on the desired amount.
-  const desiredAmount = solution.amount;
-  // sort inputs by tree, we can only spend off of a single tree at a time 
-  // this does not mean we cannot create a tx of X value on one tree[a], and a tx of Y value on tree[b] where [txA, txB] = sum of X+Y to recipient. 
-  // its not that we cant spend them at all, its just in a singular 'railgun' transaction, 
-  // nothing is preventing us from creating a tx-batch that spends across both trees that fulfils the same amount, 
-  // the recipient will just recieve N + treesSpentFrom commitments. 
-  // subsequently they are able to then either consolidate or spend normally; as they will be within the same tree. 
-  const { inputs } = solution;
-
-  const sortedInputs: Record<string, Input[]> = {};
-  const availableTrees: Record<string, bigint> = {};
-  inputs.forEach(i => {
-    const { treeNumber } = i;
-    const tnf = treeNumber.toString(10);
-    availableTrees[tnf] ??= 0n;
-    availableTrees[tnf]! += i.value;
-
-    sortedInputs[tnf] ??= []
-    sortedInputs[tnf]?.push(i)
-  })
-
-  const treeSolutions: Record<string, OutputSolution> = {};
-
-  Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
-    let treeAmountFilled = 0n;
-    const treeOutput: OutputSolution = {
-      inputs: [],
-      outputs: [],
-    };
-    while (treeAmountFilled < desiredAmount && treeInputs.length > 0) {
-      const input = treeInputs.pop();
-      if (!input) {
-        throw new Error(`No more input UTXO in tree ${treeNumber}, solution not found.`);
-      }
-      treeAmountFilled += input.value;
-      treeOutput.inputs.push(input);
-    }
-
-    const solutionOutput = {
-      value: desiredAmount,
-      recipientAddress: solution.recipientAddress,
-    };
-    treeOutput.outputs.push(solutionOutput);
-
-    const change = treeAmountFilled - desiredAmount;
-    if (change > 0n) {
-      const changeOutput = {
-        value: change,
-        recipientAddress: solution.changeAddress,
-      };
-      treeOutput.outputs.push(changeOutput);
-      treeSolutions[treeNumber] = treeOutput;
-    }
-
-  });
-
-  // need to now select the most 'economical' solution, 
-  let bestSolution: OutputSolution | null = null;
-  let bestEfficiency = solution.type === SpendingSolution.Consolidation ? 0 : Infinity;
-
-  Object.values(treeSolutions).forEach((treeSolution) => {
+  treeSolutions.forEach((treeSolution) => {
     const inputCount = treeSolution.inputs.length;
     const outputCount = treeSolution.outputs.length;
-
-    // Calculate efficiency as the ratio of inputs to outputs
     const efficiency = inputCount / outputCount;
-    // Prefer solutions with fewer inputs and outputs
-    const efficiencyCheck = solution.type == SpendingSolution.Consolidation ?
-      efficiency > bestEfficiency :
-      efficiency < bestEfficiency;
+
+    const efficiencyCheck = preferHigherEfficiency
+      ? efficiency > bestEfficiency
+      : efficiency < bestEfficiency;
 
     if (efficiencyCheck) {
       bestEfficiency = efficiency;
       bestSolution = treeSolution;
-    } else if (efficiency === bestEfficiency) {
-      // If efficiency is the same, prefer solutions with larger change outputs
+      return;
+    }
+
+    if (efficiency === bestEfficiency && bestSolution) {
       const changeOutput = treeSolution.outputs.find(
-        (output) => output.recipientAddress === solution.changeAddress
+        (output) => output.recipientAddress === solution.changeAddress,
       );
       const currentChange = changeOutput?.value || 0n;
 
-      const bestChangeOutput = bestSolution?.outputs.find(
-        (output) => output.recipientAddress === solution.changeAddress
+      const bestChangeOutput = bestSolution.outputs.find(
+        (output) => output.recipientAddress === solution.changeAddress,
       );
       const bestChange = bestChangeOutput?.value || 0n;
 
@@ -101,12 +52,61 @@ const getSpendingSolution = (
       }
     }
   });
-  if (!bestSolution) {
-    // @ts-expect-error
-    return undefined;
-  }
-  return bestSolution;
-}
 
-export { getSpendingSolution, SpendingSolution }
-export type { SpendingSolutionInput, Input }
+  return bestSolution;
+};
+
+const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | undefined => {
+  if (!solution.type) {
+    solution.type = SpendingSolution.Simple;
+  }
+
+  if (solution.amount <= 0n) return undefined;
+
+  const filteredInputs = filterZeroUTXOs(solution.inputs);
+  if (filteredInputs.length === 0) return undefined;
+
+  const sortFn =
+    solution.type === SpendingSolution.Consolidation
+      ? sortUTXOsByDescendingValue
+      : sortUTXOsByAscendingValue;
+  const preferHigherEfficiency = solution.type === SpendingSolution.Consolidation;
+
+  const { availableTrees, sortedInputs } = groupInputsByTree(filteredInputs, sortFn);
+  const treeSolutions: OutputSolution[] = [];
+
+  Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
+    const treeValue = availableTrees[treeNumber] ?? 0n;
+    if (treeValue < solution.amount) return;
+
+    const selection = selectInputsForTarget(treeInputs, solution.amount, MAX_INPUTS);
+    if (!selection) return;
+
+    const outputs = [
+      {
+        value: solution.amount,
+        recipientAddress: solution.recipientAddress,
+      },
+    ];
+
+    const change = selection.total - solution.amount;
+    if (change > 0n) {
+      outputs.push({
+        value: change,
+        recipientAddress: solution.changeAddress,
+      });
+    }
+
+    if (!isValidInputOutputCount(selection.inputs.length, outputs.length)) return;
+
+    treeSolutions.push({
+      inputs: selection.inputs,
+      outputs,
+    });
+  });
+
+  return pickBestSolution(treeSolutions, solution, preferHigherEfficiency);
+};
+
+export { getSpendingSolution, SpendingSolution };
+export type { SpendingSolutionInput, Input };

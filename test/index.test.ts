@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { getSpendingSolution, SpendingSolution, type Input, type SpendingSolutionInput } from '../src/index'
+import { getSpendingSolution, SpendingSolution, type Input, type SpendingSolutionInput, type OutputSolution } from '../src/index'
 
 function createRandomTestInputs(count: number): Input[] {
   const inputs: Input[] = [];
@@ -14,7 +14,7 @@ function createRandomTestInputs(count: number): Input[] {
   return inputs;
 }
 
-function validateRandomTestCase(desiredSolution: SpendingSolutionInput, solution: ReturnType<typeof getSpendingSolution>): void {
+function validateRandomTestCase(desiredSolution: SpendingSolutionInput, solution: OutputSolution): void {
   // console.log("Desired Amount", desiredSolution.amount);
   // console.log('Generated Solution:', solution);
   // validate inputs
@@ -44,6 +44,7 @@ function runRandomTestCases(testCaseCount: number): void {
     };
 
     const solution = getSpendingSolution(desiredSolution);
+    assert(solution, "Solution should be defined.");
     validateRandomTestCase(desiredSolution, solution);
   }
 }
@@ -67,6 +68,7 @@ describe("UTXO-Spending Solution", () => {
     };
 
     const solution = getSpendingSolution(desiredSolution);
+    assert(solution, "Solution should be defined.");
     // console.log('Generated Solution:', solution);
 
     assert(solution.inputs.length > 0, "Solution should include inputs.");
@@ -110,6 +112,7 @@ describe("UTXO-Spending Solution", () => {
     };
 
     const solution = getSpendingSolution(desiredSolution);
+    assert(solution, "Solution should be defined.");
     // console.log('Large Values Solution:', solution);
 
     assert(solution.inputs.length > 0, "Solution should include inputs.");

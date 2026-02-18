@@ -1,4 +1,5 @@
 export * from './models'
+export * from './solution'
 
 /*
   so we generate spend intents, from there the solver is passed these, and utxo's to attempt to fulfill the intent.

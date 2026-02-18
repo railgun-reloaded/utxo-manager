@@ -1,10 +1,8 @@
 export enum SpendingSolution {
   Simple,// takes a set of utxo, outputs simplest solution.
-  Advanced,// secondary flags passed as options.
   Consolidation,// X -> 1 outputs.   
-  TreeSweep
 }
-type TokenData = {
+export type TokenData = {
   // tokenAddress: string, // address left padded 32 bytes
   // tokenSubID: bigint,   // uint256
   value: bigint; // uint120 left padded 32 bytes
@@ -19,6 +17,13 @@ export type Input = {
 export type OutputSolution = {
   inputs: Input[]; // matched with the inputs by index.
   outputs: TokenData[]; // also has an expected to address
+};
+export type SpendingSolutionGroup = {
+  spendingTree: number;
+  utxos: Input[];
+  tokenOutputs: TokenData[];
+  unshieldValue: bigint;
+  tokenData: TokenData;
 };
 // type UTXO = {
 //   tokenAddress: string,

@@ -4,3 +4,4 @@ node_modules
 coverage
 src/**/*.js
 test/**/*.js
+tsconfig.tsbuildinfo
