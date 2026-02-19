@@ -32,7 +32,7 @@ describe("selectInputsForTarget ordering", () => {
     });
     assert.ok(desc, "Descending order should succeed.");
     assert.ok(desc?.total >= target, "Descending order should cover the target.");
-    assert.equal(desc?.inputs.length, 2);
+    assert.equal(desc?.inputs.length, 1);
   });
 
   it("Should use provided sortFn deterministically", () => {
