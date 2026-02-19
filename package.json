@@ -19,8 +19,8 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "test": "npm run build && node --test ./test/**/*.test.js",
-    "test-only": "npm run build && node --test-only ./test/*.test.js"
+    "test": "npm run build && node --test './test/**/*.test.js'",
+    "test-only": "npm run build && node --test-only './test/**/*.test.js'"
   },
   "dependencies": {},
   "devDependencies": {
