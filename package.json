@@ -19,13 +19,12 @@
   "scripts": {
     "build": "tsc --build",
     "clean": "tsc --build --clean",
-    "test": "npm run build && node --test './test/**/*.test.js'",
-    "test-only": "npm run build && node --test-only './test/**/*.test.js'"
+    "test": "npm run build && brittle test/**/*.test.js"
   },
-  "dependencies": {},
   "devDependencies": {
     "@railgun-reloaded/tsconfig": "^1.0.1",
     "@types/node": "^22.13.10",
+    "brittle": "^3.19.1",
     "eslint": "^9.22.0",
     "typescript": "^5.8.2"
   }

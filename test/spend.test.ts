@@ -1,7 +1,7 @@
-import { describe, it } from "node:test"
-import type { SpendInput, SpendIntent } from "../../src/spend";
-import { calculateSolution } from "../../src/spend/solution";
-import { SpendingSolution } from "../../src";
+import test from "brittle";
+import type { SpendInput, SpendIntent } from "../src/spend";
+import { calculateSolution } from "../src/spend/solution";
+import { SpendingSolution } from "../src";
 
 
 const getRandomTokenAddress = () => '0x' + BigInt(Math.floor(Math.random() * 2 ** 23)).toString(16).padStart(40, '0');
@@ -68,20 +68,18 @@ const runRandomTestCases = (count: number, feeTokenDifferent = false): void => {
 }
 
 
-describe("SolutionManager", () => {
-  it("Should generate valid solution for spendIntent", () => {
-    // const randomToken = getRandomTokenAddress();
-    // const inputs = createRandomTestInputs(10, randomToken);
-    runRandomTestCases(10);
-    // console.log(inputs)
+test("Should generate valid solution for spendIntent", () => {
+  // const randomToken = getRandomTokenAddress();
+  // const inputs = createRandomTestInputs(10, randomToken);
+  runRandomTestCases(10);
+  // console.log(inputs)
 
-  })
+})
 
-  it("Should generate valid solution for spendIntent with different feeToken", () => {
-    // const randomToken = getRandomTokenAddress();
-    // const inputs = createRandomTestInputs(10, randomToken);
-    runRandomTestCases(10, true);
-    // console.log(inputs)
+test("Should generate valid solution for spendIntent with different feeToken", () => {
+  // const randomToken = getRandomTokenAddress();
+  // const inputs = createRandomTestInputs(10, randomToken);
+  runRandomTestCases(10, true);
+  // console.log(inputs)
 
-  })
 })
