@@ -61,9 +61,7 @@ const runRandomTestCases = (count: number, feeTokenDifferent = false): void => {
         },
       ]
     }
-    const solution = calculateSolution(intent, inputs)
-    console.log("Test Completed", i)
-    solution.forEach((s, i) => console.log('SOLUTION', i, 'inputs', s?.inputs.length, 'outputs', s?.outputs.length))
+    calculateSolution(intent, inputs)
   }
 }
 

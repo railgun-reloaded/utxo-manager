@@ -94,7 +94,6 @@ test("Should handle edge cases with no inputs.", (t) => {
   };
 
   const solution = getSpendingSolution(desiredSolution);
-  console.log('Edge Case Solution:', solution);
   t.is(solution, undefined, "Solution should be undefined.")
 });
 
