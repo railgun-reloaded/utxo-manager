@@ -1,5 +1,6 @@
 import { BaseSolver } from './base-solver'
 import type { SolveParams, SolveResult } from './interfaces'
+import { SolverKind } from './interfaces'
 import type { Input, OutputSolution, SpendingSolutionInput } from './models'
 import { SpendingSolution } from './models'
 import { MAX_INPUTS, isValidInputOutputCount } from './solutions/nullifiers'
@@ -19,7 +20,7 @@ class GreedySolver extends BaseSolver<
   OutputSolution
 > {
   /** Solver name. */
-  readonly name = 'greedy'
+  readonly name = SolverKind.Greedy
 
   /**
    * Solve spending solution.
@@ -27,8 +28,8 @@ class GreedySolver extends BaseSolver<
    * @returns Solution result
    */
   solve (params: SolveParams): SolveResult {
-    if (params.kind !== 'greedy') {
-      throw new Error("GreedySolver expects params.kind === 'greedy'")
+    if (params.kind !== SolverKind.Greedy) {
+      throw new Error(`GreedySolver expects params.kind === '${SolverKind.Greedy}'`)
     }
 
     const solution = params.solution
@@ -103,7 +104,7 @@ const defaultGreedySolver = new GreedySolver()
  * @returns Output solution
  */
 const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | undefined => {
-  return defaultGreedySolver.solve({ kind: 'greedy', solution }) as
+  return defaultGreedySolver.solve({ kind: SolverKind.Greedy, solution }) as
     | OutputSolution
     | undefined
 }

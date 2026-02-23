@@ -1,5 +1,6 @@
 import { BaseSolver } from '../base-solver'
 import type { SolveParams, SolveResult } from '../interfaces'
+import { SolverKind } from '../interfaces'
 import { SpendingSolution } from '../models'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
 import { selectInputsForTarget } from '../solutions/selection'
@@ -18,7 +19,7 @@ import type {
  */
 class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOutput> {
   /** Solver name. */
-  readonly name = 'railgun'
+  readonly name = SolverKind.Railgun
 
   /**
    * Solve spending intent.
@@ -26,8 +27,8 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
    * @returns Solution result
    */
   solve (params: SolveParams): SolveResult {
-    if (params.kind !== 'railgun') {
-      throw new Error("RailgunSolver expects params.kind === 'railgun'")
+    if (params.kind !== SolverKind.Railgun) {
+      throw new Error(`RailgunSolver expects params.kind === '${SolverKind.Railgun}'`)
     }
 
     const { intent, utxos, isComplex = false } = params
@@ -140,7 +141,7 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       const { splitIntent, remainderIntent } = this.splitIntent(failingIntent)
 
       const firstResult = this.solve({
-        kind: 'railgun',
+        kind: SolverKind.Railgun,
         intent: splitIntent,
         utxos,
         isComplex: true,
@@ -162,7 +163,7 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
         (spend) => !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`)
       )
       const secondResult = this.solve({
-        kind: 'railgun',
+        kind: SolverKind.Railgun,
         intent: remainderIntent,
         utxos: remainingUtxos,
         isComplex: true,
@@ -230,7 +231,7 @@ const calculateSolution = (
   isComplex = false
 ): SpendTreeOutput[] => {
   const result = defaultRailgunSolver.solve({
-    kind: 'railgun',
+    kind: SolverKind.Railgun,
     intent,
     utxos,
     isComplex,

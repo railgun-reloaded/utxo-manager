@@ -2,10 +2,18 @@ import type { OutputSolution, SpendingSolutionInput } from './models'
 import type { SpendInput, SpendIntent, SpendTreeOutput } from './spend/models'
 
 /**
+ * Solver type identifiers.
+ */
+enum SolverKind {
+  Greedy = 'greedy',
+  Railgun = 'railgun'
+}
+
+/**
  * Parameters for solving a single-token spend.
  */
 type GreedySolveParams = {
-  kind: 'greedy'
+  kind: SolverKind.Greedy
   solution: SpendingSolutionInput
 }
 
@@ -13,7 +21,7 @@ type GreedySolveParams = {
  * Parameters for solving a railgun spend intent.
  */
 type RailgunSolveParams = {
-  kind: 'railgun'
+  kind: SolverKind.Railgun
   intent: SpendIntent
   utxos: SpendInput[]
   isComplex?: boolean
@@ -37,4 +45,5 @@ interface UTXOSolver {
   solve(params: SolveParams): SolveResult
 }
 
+export { SolverKind }
 export type { GreedySolveParams, RailgunSolveParams, SolveParams, SolveResult, UTXOSolver }
