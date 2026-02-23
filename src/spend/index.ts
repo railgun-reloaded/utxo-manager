@@ -1,2 +1,2 @@
-export * from './models'
+export type * from './models'
 export * from './solution'

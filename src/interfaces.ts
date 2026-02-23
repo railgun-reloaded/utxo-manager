@@ -1,4 +1,4 @@
-import type { SpendingSolutionInput, OutputSolution } from './models'
+import type { OutputSolution, SpendingSolutionInput } from './models'
 import type { SpendInput, SpendIntent, SpendTreeOutput } from './spend/models'
 
 /**

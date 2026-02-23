@@ -10,9 +10,9 @@ declare module 'brittle' {
     comment(message: string): void;
   }
 
-  type TestFunction = (t: Test) => void | Promise<void>;
+  type TestFunction = (t: Test) => void | Promise<void>
 
-  function test(name: string, fn: TestFunction): void;
+  function test (name: string, fn: TestFunction): void
 
-  export default test;
+  export default test
 }

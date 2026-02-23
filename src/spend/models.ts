@@ -1,4 +1,4 @@
-import type { SpendingSolution } from "../models"
+import type { SpendingSolution } from '../models'
 
 type SpendRecipient = {
   tokenAddress: string,
@@ -30,11 +30,11 @@ type SpendTreeOutput = {
   outputs: SpendTransaction[]
 }
 
-type SpendTreeSolutions = Record<string, SpendTreeOutput>;
+type SpendTreeSolutions = Record<string, SpendTreeOutput>
 
 type BadSpendOutput = {
   error: boolean;
   intent: SpendIntent;
 }
 
-export type { SpendIntent, SpendRecipient, SpendInput, SpendTransaction, SpendTreeOutput, SpendTreeSolutions, BadSpendOutput };
+export type { SpendIntent, SpendRecipient, SpendInput, SpendTransaction, SpendTreeOutput, SpendTreeSolutions, BadSpendOutput }

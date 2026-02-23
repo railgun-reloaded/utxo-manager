@@ -20,10 +20,12 @@ abstract class BaseSolver<
   TSolution extends SolutionBundle<TInput, TOutput>
 > implements UTXOSolver {
   abstract readonly name: string
-  abstract solve(params: SolveParams): SolveResult
+  abstract solve (params: SolveParams): SolveResult
 
   /**
    * Group inputs by tree number and optionally sort each tree's inputs.
+   * @param inputs
+   * @param sortFn
    */
   protected getTreeInputs (inputs: TInput[], sortFn?: (left: TInput, right: TInput) => number) {
     return groupInputsByTree(inputs, sortFn)
@@ -31,6 +33,11 @@ abstract class BaseSolver<
 
   /**
    * Pick the most efficient solution, preferring larger change when tied.
+   * @param treeSolutions
+   * @param changeAddress
+   * @param getOutputAddress
+   * @param preferHigherEfficiency
+   * @param isValidSolution
    */
   protected pickBestSolution (
     treeSolutions: TSolution[],

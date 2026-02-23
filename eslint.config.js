@@ -1,6 +1,1 @@
-module.exports = {
-  ...require("neostandard")({
-    ts: true,
-    ignores: require("neostandard").resolveIgnoresFromGitignore(),
-  }),
-};
+module.exports = [...require('@railgun-reloaded/eslint-config')()]
