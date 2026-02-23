@@ -139,15 +139,19 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       const failingIntent = solution.intent
       const { splitIntent, remainderIntent } = this.splitIntent(failingIntent)
 
-      const firstSolutions = this.solve({
+      const firstResult = this.solve({
         kind: 'railgun',
         intent: splitIntent,
         utxos,
         isComplex: true,
-      }) as SpendTreeOutput[]
+      })
+
+      if (!firstResult || !Array.isArray(firstResult)) {
+        return
+      }
 
       const usedInputs = new Set<string>()
-      firstSolutions.forEach((solutionPart) => {
+      firstResult.forEach((solutionPart) => {
         solutionPart.inputs.forEach((input) => {
           usedInputs.add(`${input.leafIndex}:${input.treeNumber}`)
         })
@@ -157,14 +161,18 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       const remainingUtxos = utxos.filter(
         (spend) => !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`)
       )
-      const secondSolutions = this.solve({
+      const secondResult = this.solve({
         kind: 'railgun',
         intent: remainderIntent,
         utxos: remainingUtxos,
         isComplex: true,
-      }) as SpendTreeOutput[]
+      })
 
-      secondSolutions.forEach((solutionPart) => {
+      if (!secondResult || !Array.isArray(secondResult)) {
+        return
+      }
+
+      secondResult.forEach((solutionPart) => {
         solutions.push(solutionPart)
       })
     })
@@ -221,12 +229,18 @@ const calculateSolution = (
   utxos: SpendInput[],
   isComplex = false
 ): SpendTreeOutput[] => {
-  return defaultRailgunSolver.solve({
+  const result = defaultRailgunSolver.solve({
     kind: 'railgun',
     intent,
     utxos,
     isComplex,
-  }) as SpendTreeOutput[]
+  })
+
+  if (!result || !Array.isArray(result)) {
+    return []
+  }
+
+  return result
 }
 
 export { calculateSolution, RailgunSolver }

@@ -1,11 +1,7 @@
 import { BaseSolver } from './base-solver'
 import type { SolveParams, SolveResult } from './interfaces'
 import type { Input, OutputSolution, SpendingSolutionInput } from './models'
-import {
-
-  SpendingSolution
-
-} from './models'
+import { SpendingSolution } from './models'
 import { MAX_INPUTS, isValidInputOutputCount } from './solutions/nullifiers'
 import { selectInputsForTarget } from './solutions/selection'
 import {
