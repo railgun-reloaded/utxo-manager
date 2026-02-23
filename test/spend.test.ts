@@ -5,17 +5,22 @@ import type { SpendInput, SpendIntent } from '../src/spend'
 import { calculateSolution } from '../src/spend/solution'
 
 /**
- *
+ * Generate random token address.
+ * @returns Token address
  */
 const getRandomTokenAddress = () => '0x' + BigInt(Math.floor(Math.random() * 2 ** 23)).toString(16).padStart(40, '0')
+
 /**
- *
+ * Generate random 0zk address.
+ * @returns 0zk address
  */
 const generateRandom0zkAddress = () => `0zkaddress${Math.random().toString(36).substring(2, 10)}`
+
 /**
- *
- * @param count
- * @param tokenAddress
+ * Create random test inputs.
+ * @param count - Number of inputs
+ * @param tokenAddress - Token address
+ * @returns Test inputs
  */
 const createRandomTestInputs = (count: number, tokenAddress: string): SpendInput[] => {
   const inputs: SpendInput[] = []
@@ -33,9 +38,9 @@ const createRandomTestInputs = (count: number, tokenAddress: string): SpendInput
 }
 
 /**
- *
- * @param count
- * @param feeTokenDifferent
+ * Run random test cases.
+ * @param count - Number of test cases
+ * @param feeTokenDifferent - Whether fee token differs
  */
 const runRandomTestCases = (count: number, feeTokenDifferent = false): void => {
   const inputs = []

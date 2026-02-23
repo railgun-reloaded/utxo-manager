@@ -22,14 +22,13 @@ class GreedySolver extends BaseSolver<
   OutputSolution['outputs'][number],
   OutputSolution
 > {
-  /**
-   *
-   */
+  /** Solver name. */
   readonly name = 'greedy'
 
   /**
-   *
-   * @param params
+   * Solve spending solution.
+   * @param params - Solve parameters
+   * @returns Solution result
    */
   solve (params: SolveParams): SolveResult {
     if (params.kind !== 'greedy') {
@@ -103,8 +102,9 @@ class GreedySolver extends BaseSolver<
 const defaultGreedySolver = new GreedySolver()
 
 /**
- *
- * @param solution
+ * Get spending solution.
+ * @param solution - Solution input
+ * @returns Output solution
  */
 const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | undefined => {
   return defaultGreedySolver.solve({ kind: 'greedy', solution }) as

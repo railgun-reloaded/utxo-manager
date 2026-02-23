@@ -5,8 +5,9 @@ import type { Input, OutputSolution, SpendingSolutionInput } from '../src/index'
 import { SpendingSolution, getSpendingSolution } from '../src/index'
 
 /**
- *
- * @param count
+ * Create random test inputs.
+ * @param count - Number of inputs
+ * @returns Test inputs
  */
 function createRandomTestInputs (count: number): Input[] {
   const inputs: Input[] = []
@@ -21,10 +22,10 @@ function createRandomTestInputs (count: number): Input[] {
 }
 
 /**
- *
- * @param t
- * @param desiredSolution
- * @param solution
+ * Validate test case.
+ * @param t - Test instance
+ * @param desiredSolution - Expected solution
+ * @param solution - Actual solution
  */
 function validateRandomTestCase (t: Test, desiredSolution: SpendingSolutionInput, solution: OutputSolution): void {
   // console.log("Desired Amount", desiredSolution.amount);
@@ -44,9 +45,9 @@ function validateRandomTestCase (t: Test, desiredSolution: SpendingSolutionInput
 }
 
 /**
- *
- * @param t
- * @param testCaseCount
+ * Run random test cases.
+ * @param t - Test instance
+ * @param testCaseCount - Number of test cases
  */
 function runRandomTestCases (t: Test, testCaseCount: number): void {
   for (let i = 0; i < testCaseCount; i++) {

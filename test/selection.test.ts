@@ -48,9 +48,10 @@ test('Should use provided sortFn deterministically', (t) => {
   const maxInputs = 2
 
   /**
-   *
-   * @param left
-   * @param right
+   * Sort descending by value.
+   * @param left - First input
+   * @param right - Second input
+   * @returns Comparison result
    */
   const sortFn = (left: TestInput, right: TestInput) => {
     if (left.value < right.value) return 1

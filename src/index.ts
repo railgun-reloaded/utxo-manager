@@ -15,7 +15,8 @@ export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutio
 
 /**
  * Create a solver instance by type.
- * @param type
+ * @param type - Solver type
+ * @returns Solver instance
  */
 export function createSolver (type: 'greedy' | 'railgun' = 'railgun'): UTXOSolver {
   return type === 'greedy' ? new GreedySolver() : new RailgunSolver()

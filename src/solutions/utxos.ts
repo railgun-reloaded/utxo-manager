@@ -7,25 +7,28 @@ type TreeInput = {
 }
 
 /**
- *
- * @param utxos
+ * Calculate total spend.
+ * @param utxos - UTXOs to sum
+ * @returns Total value
  */
 const calculateTotalSpend = <T extends ValueInput>(utxos: T[]): bigint => {
   return utxos.reduce((left, right) => left + right.value, 0n)
 }
 
 /**
- *
- * @param utxos
+ * Filter out zero value UTXOs.
+ * @param utxos - UTXOs to filter
+ * @returns Filtered UTXOs
  */
 const filterZeroUTXOs = <T extends ValueInput>(utxos: T[]): T[] => {
   return utxos.filter((utxo) => utxo.value !== 0n)
 }
 
 /**
- *
- * @param left
- * @param right
+ * Sort UTXOs by ascending value.
+ * @param left - First input
+ * @param right - Second input
+ * @returns Comparison result
  */
 const sortUTXOsByAscendingValue = <T extends ValueInput>(left: T, right: T): number => {
   if (left.value > right.value) return 1
@@ -34,9 +37,10 @@ const sortUTXOsByAscendingValue = <T extends ValueInput>(left: T, right: T): num
 }
 
 /**
- *
- * @param left
- * @param right
+ * Sort UTXOs by descending value.
+ * @param left - First input
+ * @param right - Second input
+ * @returns Comparison result
  */
 const sortUTXOsByDescendingValue = <T extends ValueInput>(left: T, right: T): number => {
   if (left.value < right.value) return 1
@@ -45,9 +49,10 @@ const sortUTXOsByDescendingValue = <T extends ValueInput>(left: T, right: T): nu
 }
 
 /**
- *
- * @param inputs
- * @param sortFn
+ * Group inputs by tree.
+ * @param inputs - Inputs to group
+ * @param sortFn - Optional sort function
+ * @returns Grouped inputs by tree
  */
 const groupInputsByTree = <T extends ValueInput & TreeInput>(
   inputs: T[],

@@ -8,18 +8,20 @@ type SelectionResult<T extends ValueInput> = {
 }
 
 /**
- *
- * @param inputs
+ * Sum input values.
+ * @param inputs - Inputs to sum
+ * @returns Total value
  */
 const sumValues = <T extends ValueInput>(inputs: T[]): bigint => {
   return inputs.reduce((left, right) => left + right.value, 0n)
 }
 
 /**
- *
- * @param inputs
- * @param target
- * @param maxInputs
+ * Find exact match for target value.
+ * @param inputs - Inputs to search
+ * @param target - Target value
+ * @param maxInputs - Max inputs allowed
+ * @returns Matched inputs
  */
 const findExactMatch = <T extends ValueInput>(
   inputs: T[],
@@ -52,10 +54,11 @@ const findExactMatch = <T extends ValueInput>(
 /**
  * Select inputs that cover the target value.
  * If sortFn is provided, inputs are ordered deterministically before selection.
- * @param inputs
- * @param target
- * @param maxInputs
- * @param sortFn
+ * @param inputs - Inputs to select from
+ * @param target - Target value
+ * @param maxInputs - Max inputs allowed
+ * @param sortFn - Optional sort function
+ * @returns Selection result
  */
 const selectInputsForTarget = <T extends ValueInput>(
   inputs: T[],

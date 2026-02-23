@@ -17,14 +17,13 @@ import type {
  * Railgun spend solver (multi-recipient, single-token per solution).
  */
 class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOutput> {
-  /**
-   *
-   */
+  /** Solver name. */
   readonly name = 'railgun'
 
   /**
-   *
-   * @param params
+   * Solve spending intent.
+   * @param params - Solve parameters
+   * @returns Solution result
    */
   solve (params: SolveParams): SolveResult {
     if (params.kind !== 'railgun') {
@@ -103,10 +102,11 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   *
-   * @param intent
-   * @param utxos
-   * @param _isComplex
+   * Get inputs grouped by token.
+   * @param intent - Spending intent
+   * @param utxos - Available UTXOs
+   * @param _isComplex - Whether complex solution
+   * @returns Grouped inputs
    */
   private getSolutionInputs (
     intent: SpendIntent,
@@ -124,9 +124,10 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   *
-   * @param utxos
-   * @param solutions
+   * Resolve complex solutions by splitting.
+   * @param utxos - Available UTXOs
+   * @param solutions - Solutions to resolve
+   * @returns Resolved solutions
    */
   private resolveComplexSolutions (
     utxos: SpendInput[],
@@ -172,8 +173,9 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   *
-   * @param intent
+   * Split intent in half.
+   * @param intent - Intent to split
+   * @returns Split and remainder intents
    */
   private splitIntent (intent: SpendIntent): { splitIntent: SpendIntent; remainderIntent: SpendIntent } {
     const splitIntent: SpendIntent = {
@@ -208,10 +210,11 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
 const defaultRailgunSolver = new RailgunSolver()
 
 /**
- *
- * @param intent
- * @param utxos
- * @param isComplex
+ * Calculate solution for spending intent.
+ * @param intent - Spending intent
+ * @param utxos - Available UTXOs
+ * @param isComplex - Whether complex solution
+ * @returns Solution outputs
  */
 const calculateSolution = (
   intent: SpendIntent,

@@ -1,1 +1,1 @@
-{ }
+// Global type declarations

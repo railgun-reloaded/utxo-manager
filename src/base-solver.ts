@@ -24,8 +24,9 @@ abstract class BaseSolver<
 
   /**
    * Group inputs by tree number and optionally sort each tree's inputs.
-   * @param inputs
-   * @param sortFn
+   * @param inputs - Inputs to group
+   * @param sortFn - Optional sort function
+   * @returns Grouped inputs by tree
    */
   protected getTreeInputs (inputs: TInput[], sortFn?: (left: TInput, right: TInput) => number) {
     return groupInputsByTree(inputs, sortFn)
@@ -33,11 +34,12 @@ abstract class BaseSolver<
 
   /**
    * Pick the most efficient solution, preferring larger change when tied.
-   * @param treeSolutions
-   * @param changeAddress
-   * @param getOutputAddress
-   * @param preferHigherEfficiency
-   * @param isValidSolution
+   * @param treeSolutions - Solutions to evaluate
+   * @param changeAddress - Change output address
+   * @param getOutputAddress - Function to get output address
+   * @param preferHigherEfficiency - Prefer higher efficiency ratios
+   * @param isValidSolution - Optional validator
+   * @returns Best solution
    */
   protected pickBestSolution (
     treeSolutions: TSolution[],
