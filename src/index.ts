@@ -13,6 +13,11 @@ export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
 export { selectInputsForTarget, findExactMatch } from './solutions/selection'
 export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
 
+/**
+ * Create a solver instance by type.
+ * @param type - Solver type
+ * @returns Solver instance
+ */
 export function createSolver (type: 'greedy' | 'railgun' = 'railgun'): UTXOSolver {
   return type === 'greedy' ? new GreedySolver() : new RailgunSolver()
 }
