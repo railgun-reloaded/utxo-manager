@@ -99,3 +99,112 @@ test('Should generate valid solution for spendIntent with different feeToken', (
   runRandomTestCases(10, true)
   // console.log(inputs)
 })
+
+test('Should handle multi-transaction scenario with >10 UTXOs', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  // Create 15 UTXOs, each worth 10, all from the same tree
+  const inputs: SpendInput[] = Array.from({ length: 15 }, (_, i) => ({
+    tokenAddress,
+    leafIndex: BigInt(i),
+    treeNumber: 0n,
+    value: 10n
+  }))
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress,
+    recipients: [
+      {
+        tokenAddress,
+        railgunAddress: recipient,
+        amount: 150n // Requires all 15 UTXOs
+      }
+    ]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.ok(solutions.length > 0, 'Should generate solutions')
+  t.ok(solutions.length >= 2, 'Should generate multiple SpendTreeOutput for >10 inputs')
+
+  // Verify total inputs across all solutions
+  const totalInputs = solutions.reduce((sum, sol) => sum + sol.inputs.length, 0)
+  t.is(totalInputs, 15, 'Should use all 15 UTXOs')
+
+  // Verify each solution has ≤10 inputs
+  solutions.forEach((sol, idx) => {
+    t.ok(sol.inputs.length <= 10, `Solution ${idx} should have ≤10 inputs`)
+  })
+
+  // Verify outputs are distributed across solutions
+  let totalRecipientValue = 0n
+  solutions.forEach((sol, idx) => {
+    t.ok(sol.outputs.length > 0, `Solution ${idx} should have outputs`)
+    const recipientOutput = sol.outputs.find(o => o.railgunAddress === recipient)
+    if (recipientOutput) {
+      totalRecipientValue += recipientOutput.value
+    }
+  })
+
+  t.is(totalRecipientValue, 150n, 'Total recipient value across all solutions should be 150n')
+})
+
+test('Should handle multi-transaction scenario across multiple trees', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  // Create 25 UTXOs across 3 different trees
+  const inputs: SpendInput[] = [
+    ...Array.from({ length: 10 }, (_, i) => ({
+      tokenAddress,
+      leafIndex: BigInt(i),
+      treeNumber: 0n,
+      value: 10n
+    })),
+    ...Array.from({ length: 10 }, (_, i) => ({
+      tokenAddress,
+      leafIndex: BigInt(i),
+      treeNumber: 1n,
+      value: 10n
+    })),
+    ...Array.from({ length: 5 }, (_, i) => ({
+      tokenAddress,
+      leafIndex: BigInt(i),
+      treeNumber: 2n,
+      value: 10n
+    }))
+  ]
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress,
+    recipients: [
+      {
+        tokenAddress,
+        railgunAddress: recipient,
+        amount: 250n // Requires all 25 UTXOs
+      }
+    ]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.ok(solutions.length > 0, 'Should generate solutions')
+  t.ok(solutions.length >= 3, 'Should generate multiple SpendTreeOutput for cross-tree scenario')
+
+  // Verify total value covered
+  const totalValue = solutions.reduce((sum, sol) => {
+    return sum + sol.inputs.reduce((s, inp) => s + inp.value, 0n)
+  }, 0n)
+  t.ok(totalValue >= 250n, 'Should cover target amount')
+
+  // Verify each batch is from a single tree
+  solutions.forEach((sol, idx) => {
+    const treeNumbers = new Set(sol.inputs.map(inp => inp.treeNumber))
+    t.is(treeNumbers.size, 1, `Solution ${idx} should have inputs from single tree`)
+  })
+})

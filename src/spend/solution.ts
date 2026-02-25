@@ -4,6 +4,7 @@ import { SolverKind } from '../interfaces'
 import { SpendingSolution } from '../models'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
 import { selectInputsForTarget } from '../solutions/selection'
+import { selectBatchesForTarget } from '../solutions/batch-selection'
 import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
 
 import type {
@@ -53,6 +54,7 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       )
       const intentTotal = filteredRecipients.reduce((left, right) => left + right.amount, 0n)
 
+      // Step 1: Try single-tree solutions (existing logic for efficiency)
       Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
         const treeValue = availableTrees[treeNumber] ?? 0n
         if (treeValue < intentTotal) return
@@ -95,7 +97,67 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       if (efficientSolution) {
         solutions.push(efficientSolution)
       } else {
-        solutions.push({ error: true, intent })
+        // Step 2: No single-tree solution found, try multi-batch approach
+        const batches = selectBatchesForTarget(inputs, intentTotal, MAX_INPUTS, sortFn)
+
+        if (batches.length > 0) {
+          // Distribute outputs across batches proportionally
+          // Each batch gets a proportional share of the recipient outputs based on its value contribution
+          const totalBatchValue = batches.reduce((sum, b) => sum + b.total, 0n)
+          let remainingToAllocate = intentTotal
+
+          batches.forEach((batch, index) => {
+            const isLastBatch = index === batches.length - 1
+
+            const batchOutput: SpendTreeOutput = {
+              inputs: batch.inputs,
+              outputs: []
+            }
+
+            // Calculate this batch's proportional share of the intent
+            // For the last batch, use remaining amount to avoid rounding errors
+            const batchShare = isLastBatch
+              ? remainingToAllocate
+              : (batch.total * intentTotal) / totalBatchValue
+
+            // Distribute this batch's share across recipients proportionally
+            let batchShareRemaining = batchShare
+            filteredRecipients.forEach((recipient, recipientIndex) => {
+              const isLastRecipient = recipientIndex === filteredRecipients.length - 1
+              const recipientShare = isLastRecipient
+                ? batchShareRemaining
+                : (recipient.amount * batchShare) / intentTotal
+
+              if (recipientShare > 0n) {
+                batchOutput.outputs.push({
+                  value: recipientShare,
+                  railgunAddress: recipient.railgunAddress,
+                })
+                batchShareRemaining -= recipientShare
+              }
+            })
+
+            remainingToAllocate -= batchShare
+
+            // Add change if this batch has excess value
+            const batchOutputTotal = batchOutput.outputs.reduce((sum, o) => sum + o.value, 0n)
+            const batchChange = batch.total - batchOutputTotal
+            if (batchChange > 0n) {
+              batchOutput.outputs.push({
+                value: batchChange,
+                railgunAddress: intent.changeAddress,
+              })
+            }
+
+            // Validate input/output counts
+            if (isValidInputOutputCount(batchOutput.inputs.length, batchOutput.outputs.length)) {
+              solutions.push(batchOutput)
+            }
+          })
+        } else {
+          // No solution found (single or multi-batch)
+          solutions.push({ error: true, intent })
+        }
       }
     })
 

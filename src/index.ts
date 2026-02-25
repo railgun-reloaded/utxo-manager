@@ -11,6 +11,7 @@ export { SolverKind } from './interfaces'
 export { BaseSolver } from './base-solver'
 export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
 export { selectInputsForTarget, findExactMatch } from './solutions/selection'
+export { selectBatchesForTarget, type BatchResult } from './solutions/batch-selection'
 export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
 
 /**
