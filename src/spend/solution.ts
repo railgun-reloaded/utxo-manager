@@ -4,7 +4,7 @@ import { SolverKind } from '../interfaces'
 import { SpendingSolution } from '../models'
 import { selectBatchesForTarget } from '../solutions/batch-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
-import { selectInputsForTarget } from '../solutions/selection'
+import { selectOptimalInputs } from '../solutions/optimal-selection'
 import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
 
 import type {
@@ -54,16 +54,15 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       )
       const intentTotal = filteredRecipients.reduce((left, right) => left + right.amount, 0n)
 
-      // Step 1: Try single-tree solutions (existing logic for efficiency)
+      // Step 1: Try optimal single-tree solutions
       Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
         const treeValue = availableTrees[treeNumber] ?? 0n
         if (treeValue < intentTotal) return
 
-        const selection = selectInputsForTarget(
+        const selection = selectOptimalInputs(
           treeInputs,
           intentTotal,
-          MAX_INPUTS,
-          sortFn
+          MAX_INPUTS
         )
         if (!selection) return
 
