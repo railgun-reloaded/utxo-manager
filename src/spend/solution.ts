@@ -101,58 +101,48 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
         const batches = selectBatchesForTarget(inputs, intentTotal, MAX_INPUTS, sortFn)
 
         if (batches.length > 0) {
-          // Distribute outputs across batches proportionally
-          // Each batch gets a proportional share of the recipient outputs based on its value contribution
-          const totalBatchValue = batches.reduce((sum, b) => sum + b.total, 0n)
-          let remainingToAllocate = intentTotal
-
+          // Multi-batch strategy:
+          // - Intermediate batches: consolidate all value to changeAddress (self)
+          // - Final batch: send to actual recipients + remaining change
           batches.forEach((batch, index) => {
             const isLastBatch = index === batches.length - 1
 
             const batchOutput: SpendTreeOutput = {
               inputs: batch.inputs,
-              outputs: []
+              outputs: isLastBatch
+                ? filteredRecipients.map((recipient) => ({
+                    value: recipient.amount,
+                    railgunAddress: recipient.railgunAddress,
+                  }))
+                : [
+                    // Intermediate batch: consolidate to self
+                    {
+                      value: batch.total,
+                      railgunAddress: intent.changeAddress,
+                    }
+                  ]
             }
 
-            // Calculate this batch's proportional share of the intent
-            // For the last batch, use remaining amount to avoid rounding errors
-            const batchShare = isLastBatch
-              ? remainingToAllocate
-              : (batch.total * intentTotal) / totalBatchValue
-
-            // Distribute this batch's share across recipients proportionally
-            let batchShareRemaining = batchShare
-            filteredRecipients.forEach((recipient, recipientIndex) => {
-              const isLastRecipient = recipientIndex === filteredRecipients.length - 1
-              const recipientShare = isLastRecipient
-                ? batchShareRemaining
-                : (recipient.amount * batchShare) / intentTotal
-
-              if (recipientShare > 0n) {
+            // Add change to final batch only
+            if (isLastBatch) {
+              const totalBatchValue = batches.reduce((sum, b) => sum + b.total, 0n)
+              const changeAmount = totalBatchValue - intentTotal
+              if (changeAmount > 0n) {
                 batchOutput.outputs.push({
-                  value: recipientShare,
-                  railgunAddress: recipient.railgunAddress,
+                  value: changeAmount,
+                  railgunAddress: intent.changeAddress,
                 })
-                batchShareRemaining -= recipientShare
               }
-            })
-
-            remainingToAllocate -= batchShare
-
-            // Add change if this batch has excess value
-            const batchOutputTotal = batchOutput.outputs.reduce((sum, o) => sum + o.value, 0n)
-            const batchChange = batch.total - batchOutputTotal
-            if (batchChange > 0n) {
-              batchOutput.outputs.push({
-                value: batchChange,
-                railgunAddress: intent.changeAddress,
-              })
             }
 
             // Validate input/output counts
-            if (isValidInputOutputCount(batchOutput.inputs.length, batchOutput.outputs.length)) {
-              solutions.push(batchOutput)
+            if (!isValidInputOutputCount(batchOutput.inputs.length, batchOutput.outputs.length)) {
+              throw new Error(
+                `Invalid batch: ${batchOutput.inputs.length} inputs, ${batchOutput.outputs.length} outputs exceeds circuit limits`
+              )
             }
+
+            solutions.push(batchOutput)
           })
         } else {
           // No solution found (single or multi-batch)
@@ -161,7 +151,7 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       }
     })
 
-    return this.resolveComplexSolutions(utxos, solutions)
+    return solutions.filter((solution) => !('error' in solution)) as SpendTreeOutput[]
   }
 
   /**
@@ -184,97 +174,6 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       inputs.push(utxos.filter((utxo) => utxo.tokenAddress === token))
     })
     return inputs
-  }
-
-  /**
-   * Resolve complex solutions by splitting.
-   * @param utxos - Available UTXOs
-   * @param solutions - Solutions to resolve
-   * @returns Resolved solutions
-   */
-  private resolveComplexSolutions (
-    utxos: SpendInput[],
-    solutions: (SpendTreeOutput | BadSpendOutput)[]
-  ): SpendTreeOutput[] {
-    solutions.forEach((solution) => {
-      if (!('error' in solution)) return
-
-      const failingIntent = solution.intent
-      const { splitIntent, remainderIntent } = this.splitIntent(failingIntent)
-
-      const firstResult = this.solve({
-        kind: SolverKind.Railgun,
-        intent: splitIntent,
-        utxos,
-        isComplex: true,
-      })
-
-      if (!firstResult || !Array.isArray(firstResult)) {
-        return
-      }
-
-      const usedInputs = new Set<string>()
-      firstResult.forEach((solutionPart) => {
-        solutionPart.inputs.forEach((input) => {
-          usedInputs.add(`${input.leafIndex}:${input.treeNumber}`)
-        })
-        solutions.push(solutionPart)
-      })
-
-      const remainingUtxos = utxos.filter(
-        (spend) => !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`)
-      )
-      const secondResult = this.solve({
-        kind: SolverKind.Railgun,
-        intent: remainderIntent,
-        utxos: remainingUtxos,
-        isComplex: true,
-      })
-
-      if (!secondResult || !Array.isArray(secondResult)) {
-        return
-      }
-
-      secondResult.forEach((solutionPart) => {
-        solutions.push(solutionPart)
-      })
-    })
-
-    return solutions.filter((solution) => !('error' in solution)) as SpendTreeOutput[]
-  }
-
-  /**
-   * Split intent in half.
-   * @param intent - Intent to split
-   * @returns Split and remainder intents
-   */
-  private splitIntent (intent: SpendIntent): { splitIntent: SpendIntent; remainderIntent: SpendIntent } {
-    const splitIntent: SpendIntent = {
-      changeAddress: intent.changeAddress,
-      recipients: [],
-      type: intent.type,
-    }
-    const remainderIntent: SpendIntent = {
-      changeAddress: intent.changeAddress,
-      recipients: [],
-      type: intent.type,
-    }
-
-    intent.recipients.forEach((recipient) => {
-      const halved = recipient.amount / 2n
-      splitIntent.recipients.push({
-        tokenAddress: recipient.tokenAddress,
-        railgunAddress: recipient.railgunAddress,
-        amount: halved,
-      })
-      remainderIntent.recipients.push({
-        tokenAddress: recipient.tokenAddress,
-        railgunAddress: recipient.railgunAddress,
-        amount: recipient.amount - halved,
-      })
-    })
-
-    return { splitIntent, remainderIntent }
   }
 }
 

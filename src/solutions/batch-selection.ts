@@ -71,9 +71,11 @@ const selectBatchesForTarget = <T extends ValueInput & TreeInput>(
 
   // Create a unique ID for each input to track usage
   const getInputId = (input: T): string => {
-    // Assume inputs have unique combination of treeNumber and some index
-    // For now, use object reference; in production, use actual unique identifiers
-    return `${input.treeNumber.toString()}-${input.value.toString()}-${inputs.indexOf(input)}`
+    // Use leafIndex if available (SpendInput type), otherwise fall back to indexOf
+    const leafIndex = (input as any).leafIndex
+    return leafIndex !== undefined
+      ? `${input.treeNumber}-${leafIndex}`
+      : `${input.treeNumber}-${input.value}-${inputs.indexOf(input)}`
   }
 
   while (remainingTarget > 0n) {

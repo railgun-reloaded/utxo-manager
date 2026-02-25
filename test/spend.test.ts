@@ -139,17 +139,21 @@ test('Should handle multi-transaction scenario with >10 UTXOs', (t) => {
     t.ok(sol.inputs.length <= 10, `Solution ${idx} should have ≤10 inputs`)
   })
 
-  // Verify outputs are distributed across solutions
-  let totalRecipientValue = 0n
+  // Verify intermediate batches consolidate to self, final batch has recipients
   solutions.forEach((sol, idx) => {
+    const isLastBatch = idx === solutions.length - 1
     t.ok(sol.outputs.length > 0, `Solution ${idx} should have outputs`)
-    const recipientOutput = sol.outputs.find(o => o.railgunAddress === recipient)
-    if (recipientOutput) {
-      totalRecipientValue += recipientOutput.value
+
+    if (isLastBatch) {
+      const recipientOutput = sol.outputs.find(o => o.railgunAddress === recipient)
+      t.ok(recipientOutput, 'Last batch should have recipient output')
+      t.is(recipientOutput?.value, 150n, 'Last batch should send full amount to recipient')
+    } else {
+      // Intermediate batch should only output to change address
+      t.is(sol.outputs.length, 1, `Intermediate batch ${idx} should have 1 output`)
+      t.is(sol.outputs[0]!.railgunAddress, changeAddress, `Intermediate batch ${idx} should output to change address`)
     }
   })
-
-  t.is(totalRecipientValue, 150n, 'Total recipient value across all solutions should be 150n')
 })
 
 test('Should handle multi-transaction scenario across multiple trees', (t) => {
@@ -207,4 +211,108 @@ test('Should handle multi-transaction scenario across multiple trees', (t) => {
     const treeNumbers = new Set(sol.inputs.map(inp => inp.treeNumber))
     t.is(treeNumbers.size, 1, `Solution ${idx} should have inputs from single tree`)
   })
+})
+
+test('Edge case: Exactly 10 inputs required', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  const inputs: SpendInput[] = Array.from({ length: 10 }, (_, i) => ({
+    tokenAddress,
+    leafIndex: BigInt(i),
+    treeNumber: 0n,
+    value: 10n
+  }))
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress,
+    recipients: [{ tokenAddress, railgunAddress: recipient, amount: 100n }]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.is(solutions.length, 1, 'Should generate single solution')
+  t.is(solutions[0]!.inputs.length, 10, 'Should use exactly 10 inputs')
+})
+
+test('Edge case: Exactly 11 inputs required (forces split)', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  const inputs: SpendInput[] = Array.from({ length: 11 }, (_, i) => ({
+    tokenAddress,
+    leafIndex: BigInt(i),
+    treeNumber: 0n,
+    value: 10n
+  }))
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress,
+    recipients: [{ tokenAddress, railgunAddress: recipient, amount: 110n }]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.is(solutions.length, 2, 'Should split into 2 batches')
+  t.is(solutions[0]!.inputs.length, 10, 'First batch should have 10 inputs')
+  t.is(solutions[1]!.inputs.length, 1, 'Second batch should have 1 input')
+})
+
+test('Edge case: Single UTXO covers everything', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  const inputs: SpendInput[] = [{
+    tokenAddress,
+    leafIndex: 0n,
+    treeNumber: 0n,
+    value: 1000n
+  }]
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress,
+    recipients: [{ tokenAddress, railgunAddress: recipient, amount: 100n }]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.is(solutions.length, 1, 'Should generate single solution')
+  t.is(solutions[0]!.inputs.length, 1, 'Should use single input')
+  t.is(solutions[0]!.outputs.length, 2, 'Should have recipient + change output')
+})
+
+test('Edge case: Consolidation mode with >10 UTXOs', (t) => {
+  const tokenAddress = getRandomTokenAddress()
+  const changeAddress = generateRandom0zkAddress() + 'CHANGE'
+  const recipient = generateRandom0zkAddress() + 'RECIPIENT'
+
+  const inputs: SpendInput[] = Array.from({ length: 15 }, (_, i) => ({
+    tokenAddress,
+    leafIndex: BigInt(i),
+    treeNumber: 0n,
+    value: BigInt(i + 1) // Varying values: 1, 2, 3, ..., 15
+  }))
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Consolidation,
+    changeAddress,
+    recipients: [{ tokenAddress, railgunAddress: recipient, amount: 120n }]
+  }
+
+  const solutions = calculateSolution(intent, inputs)
+
+  t.ok(solutions.length > 0, 'Should generate solutions')
+
+  // In consolidation mode, larger UTXOs are preferred (descending sort)
+  // Verify first batch uses larger values
+  if (solutions[0]) {
+    const firstBatchValues = solutions[0].inputs.map(i => i.value)
+    t.ok(firstBatchValues.includes(15n), 'Should include largest UTXO in first batch')
+  }
 })
