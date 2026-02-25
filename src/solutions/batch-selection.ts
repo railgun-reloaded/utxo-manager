@@ -32,7 +32,6 @@ const sumValues = <T extends ValueInput>(inputs: T[]): bigint => {
  * 1. Check if any single tree has an exact match (prioritize efficiency)
  * 2. Otherwise, iteratively select up to maxInputs from the best available tree
  * 3. Continue until target is covered or inputs are exhausted
- *
  * @param inputs - Available inputs to select from
  * @param target - Target value to cover
  * @param maxInputs - Maximum inputs per batch (default 10)
@@ -69,9 +68,12 @@ const selectBatchesForTarget = <T extends ValueInput & TreeInput>(
   let remainingTarget = target
   const usedInputIds = new Set<string>()
 
-  // Create a unique ID for each input to track usage
+  /**
+   * Generate unique ID for input tracking.
+   * @param input - Input to generate ID for
+   * @returns Unique identifier string
+   */
   const getInputId = (input: T): string => {
-    // Use leafIndex if available (SpendInput type), otherwise fall back to indexOf
     const leafIndex = (input as any).leafIndex
     return leafIndex !== undefined
       ? `${input.treeNumber}-${leafIndex}`

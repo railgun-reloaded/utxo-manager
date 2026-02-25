@@ -2,9 +2,9 @@ import { BaseSolver } from '../base-solver'
 import type { SolveParams, SolveResult } from '../interfaces'
 import { SolverKind } from '../interfaces'
 import { SpendingSolution } from '../models'
+import { selectBatchesForTarget } from '../solutions/batch-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
 import { selectInputsForTarget } from '../solutions/selection'
-import { selectBatchesForTarget } from '../solutions/batch-selection'
 import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
 
 import type {
@@ -111,9 +111,9 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
               inputs: batch.inputs,
               outputs: isLastBatch
                 ? filteredRecipients.map((recipient) => ({
-                    value: recipient.amount,
-                    railgunAddress: recipient.railgunAddress,
-                  }))
+                  value: recipient.amount,
+                  railgunAddress: recipient.railgunAddress,
+                }))
                 : [
                     // Intermediate batch: consolidate to self
                     {

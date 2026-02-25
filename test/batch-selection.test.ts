@@ -146,6 +146,12 @@ test('Respects sortFn - ascending order', (t) => {
     { value: 1n, treeNumber: 0n, id: 'small3' },
   ]
 
+  /**
+   * Sort inputs by ascending value.
+   * @param left - First input
+   * @param right - Second input
+   * @returns Comparison result
+   */
   const sortAscending = (left: TestInput, right: TestInput) => {
     if (left.value > right.value) return 1
     if (left.value < right.value) return -1
@@ -167,6 +173,12 @@ test('Respects sortFn - descending order', (t) => {
     { value: 1n, treeNumber: 0n, id: 'small3' },
   ]
 
+  /**
+   * Sort inputs by descending value.
+   * @param left - First input
+   * @param right - Second input
+   * @returns Comparison result
+   */
   const sortDescending = (left: TestInput, right: TestInput) => {
     if (left.value < right.value) return 1
     if (left.value > right.value) return -1
