@@ -30,10 +30,18 @@ const selectOptimalInputs = <T extends ValueInput>(
 
   const candidates: OptimalSelectionResult<T>[] = []
 
-  // Strategy 1: Exact match (1 or 2 inputs)
+  // Strategy 1: Exact match (1 or 2 inputs) - EARLY EXIT if perfect
   const exactMatch = findExactMatch(inputs, target, Math.min(maxInputs, 2))
   if (exactMatch) {
     const total = exactMatch.reduce((sum, i) => sum + i.value, 0n)
+    if (total === target) {
+      // Perfect match - skip all other strategies
+      return {
+        inputs: exactMatch,
+        total,
+        score: scoreSelection(exactMatch, target)
+      }
+    }
     candidates.push({
       inputs: exactMatch,
       total,
@@ -41,8 +49,16 @@ const selectOptimalInputs = <T extends ValueInput>(
     })
   }
 
+  // Sort once and reuse
+  const descending = [...inputs].sort((a, b) => {
+    if (a.value > b.value) return -1
+    if (a.value < b.value) return 1
+    return 0
+  })
+  const ascending = [...descending].reverse()
+
   // Strategy 2: Single large UTXO that covers target
-  const singleCover = inputs.find(i => i.value >= target)
+  const singleCover = descending.find(i => i.value >= target)
   if (singleCover) {
     candidates.push({
       inputs: [singleCover],
@@ -52,12 +68,6 @@ const selectOptimalInputs = <T extends ValueInput>(
   }
 
   // Strategy 3: Smallest set of largest UTXOs
-  const descending = [...inputs].sort((a, b) => {
-    if (a.value > b.value) return -1
-    if (a.value < b.value) return 1
-    return 0
-  })
-
   let accumulated = 0n
   const largestSet: T[] = []
   for (const input of descending) {
@@ -76,12 +86,6 @@ const selectOptimalInputs = <T extends ValueInput>(
   }
 
   // Strategy 4: Greedy from smallest (good for minimizing change)
-  const ascending = [...inputs].sort((a, b) => {
-    if (a.value > b.value) return 1
-    if (a.value < b.value) return -1
-    return 0
-  })
-
   accumulated = 0n
   const smallestSet: T[] = []
   for (const input of ascending) {
