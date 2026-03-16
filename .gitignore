@@ -1,7 +1,27 @@
-.env
-node_modules
-.claude
-coverage
-src/**/*.js
-test/**/*.js
+# Build outputs
+*.js
+*.js.map
+*.d.ts
 tsconfig.tsbuildinfo
+
+!eslint.config.js
+coverage/*
+# Dependencies
+node_modules/
+
+# Test artifacts
+*.test.js
+
+# OS files
+.DS_Store
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment
+.env
+.env.local
+.env.*.local
