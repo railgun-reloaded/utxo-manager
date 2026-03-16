@@ -77,11 +77,12 @@ export class NullifierIndexer {
    * @param utxo - UTXO to add
    *
    * @example
+   * import { fromHex } from './utils'
    * const utxo = {
-   *   commitment: '0xabc...',
-   *   nullifier: '0xdef...',
+   *   commitment: fromHex('abc...'),
+   *   nullifier: fromHex('def...'),
    *   value: 1000n,
-   *   token: '0xtoken...',
+   *   token: fromHex('token...'),
    *   // ... other fields
    * }
    * indexer.addUTXO(utxo)
@@ -130,11 +131,12 @@ export class NullifierIndexer {
    * @returns True if the nullifier is in the index (spent), false otherwise
    *
    * @example
-   * if (indexer.isSpent('0xnullifier...')) {
+   * const nullifier = fromHex('nullifier...')
+   * if (indexer.isSpent(nullifier)) {
    *   console.log('This UTXO has already been spent')
    * }
    */
-  isSpent(nullifier: string): boolean {
+  isSpent(nullifier: Uint8Array): boolean {
     return isSpentInState(this.state, nullifier)
   }
 
@@ -145,19 +147,20 @@ export class NullifierIndexer {
    * @returns UTXO if found, undefined otherwise
    *
    * @example
-   * const utxo = indexer.getUTXO('0xcommitment...')
+   * const commitment = fromHex('commitment...')
+   * const utxo = indexer.getUTXO(commitment)
    * if (utxo && !utxo.spent) {
    *   console.log('UTXO is spendable')
    * }
    */
-  getUTXO(commitment: string): UTXO | undefined {
+  getUTXO(commitment: Uint8Array): UTXO | undefined {
     return getUTXOFromState(this.state, commitment)
   }
 
   /**
    * Gets all spendable (unspent) UTXOs, optionally filtered by token.
    *
-   * @param token - Optional token address to filter by
+   * @param token - Optional token address (as byte array) to filter by
    * @returns Array of spendable UTXOs
    *
    * @example
@@ -165,7 +168,8 @@ export class NullifierIndexer {
    * const allSpendable = indexer.getSpendableUTXOs()
    *
    * // Get spendable UTXOs for a specific token
-   * const tokenUTXOs = indexer.getSpendableUTXOs('0xtoken...')
+   * const token = fromHex('token...')
+   * const tokenUTXOs = indexer.getSpendableUTXOs(token)
    *
    * // Feed to spending solver
    * const solution = calculateSolution({
@@ -174,7 +178,7 @@ export class NullifierIndexer {
    *   // ...
    * })
    */
-  getSpendableUTXOs(token?: string): UTXO[] {
+  getSpendableUTXOs(token?: Uint8Array): UTXO[] {
     return getSpendableUTXOsFromState(this.state, token)
   }
 

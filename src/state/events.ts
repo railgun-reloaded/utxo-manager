@@ -1,12 +1,13 @@
 import type { UTXOState } from './models'
 import { applyNullifierUpdates } from './nullifiers'
+import { toHex } from './utils'
 
 /**
  * Represents a nullifier event from the blockchain.
  */
 export interface NullifierEvent {
   /** The nullifier hash that was revealed */
-  nullifier: string
+  nullifier: Uint8Array
   /** Transaction ID where this nullifier was spent */
   txid: string
   /** Block number where the spend occurred */
@@ -58,7 +59,7 @@ export function handleReorg(
   const newUtxos = state.utxos.map(utxo => {
     if (utxo.spent && utxo.spentBlockNumber && utxo.spentBlockNumber > reorgBlockNumber) {
       // Mark this nullifier for removal from the set
-      nullifiersToRemove.add(utxo.nullifier)
+      nullifiersToRemove.add(toHex(utxo.nullifier))
 
       // Revert the UTXO to unspent (omit optional properties instead of setting to undefined)
       const { spentTxid, spentBlockNumber, ...rest } = utxo

@@ -87,26 +87,9 @@ const runRandomTestCases = (count: number, feeTokenDifferent = false): void => {
 }
 
 test('Should generate valid solution for spendIntent', () => {
-  // const randomToken = getRandomTokenAddress();
-  // const inputs = createRandomTestInputs(10, randomToken);
   runRandomTestCases(10)
-  // console.log(inputs)
 })
 
-describe("SolutionManager", () => {
-  it("Should generate valid solution for spendIntent", () => {
-    // const randomToken = getRandomTokenAddress();
-    // const inputs = createRandomTestInputs(10, randomToken);
-    runRandomTestCases(10);
-    // console.log(inputs)
-
-  })
-
-  it("Should generate valid solution for spendIntent with different feeToken", () => {
-    // const randomToken = getRandomTokenAddress();
-    // const inputs = createRandomTestInputs(10, randomToken);
-    runRandomTestCases(10, true);
-    // console.log(inputs)
-
-  })
+test('Should generate valid solution for spendIntent with different feeToken', () => {
+  runRandomTestCases(10, true)
 })

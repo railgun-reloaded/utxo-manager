@@ -2,16 +2,24 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import type { UTXO } from '../../src/state/models'
 import type { NullifierEvent } from '../../src/state/events'
-import { createEmptyState, addUTXO, addUTXOs } from '../../src/state'
+import { createEmptyState, addUTXO, addUTXOs, fromHex, toHex } from '../../src/state'
 import { applyNullifierEvents, handleReorg } from '../../src/state/events'
 
 function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
+  const randomHex = () => {
+    const bytes = new Uint8Array(32)
+    for (let i = 0; i < bytes.length; i++) {
+      bytes[i] = Math.floor(Math.random() * 256)
+    }
+    return bytes
+  }
+
   return {
-    commitment: `commitment_${Math.random().toString(36).slice(2)}`,
-    nullifier: `nullifier_${Math.random().toString(36).slice(2)}`,
+    commitment: randomHex(),
+    nullifier: randomHex(),
     treeNumber: 0n,
     leafIndex: BigInt(Math.floor(Math.random() * 1000)),
-    token: '0xtoken_default',
+    token: fromHex('0000000000000000000000000000000000000001'),
     value: BigInt(Math.floor(Math.random() * 10000) + 100),
     blockNumber: 1000n,
     spent: false,
@@ -22,13 +30,14 @@ function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
 describe('Nullifier Events', () => {
   describe('applyNullifierEvents', () => {
     it('marks UTXO as spent when nullifier matches', () => {
-      const utxo = createMockUTXO({ nullifier: 'test_nullifier_123' })
+      const testNullifier = fromHex('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')
+      const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
         {
-          nullifier: 'test_nullifier_123',
+          nullifier: testNullifier,
           txid: '0xtxid_abc',
           blockNumber: 1500n
         }
@@ -42,13 +51,14 @@ describe('Nullifier Events', () => {
     })
 
     it('records txid and blockNumber on spent UTXO', () => {
-      const utxo = createMockUTXO({ nullifier: 'nullifier_xyz' })
+      const testNullifier = fromHex('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210')
+      const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
         {
-          nullifier: 'nullifier_xyz',
+          nullifier: testNullifier,
           txid: '0xtransaction_hash_123',
           blockNumber: 2000n
         }
@@ -62,13 +72,14 @@ describe('Nullifier Events', () => {
     })
 
     it('adds nullifier to state.nullifiers set', () => {
-      const utxo = createMockUTXO({ nullifier: 'nullifier_test' })
+      const testNullifier = fromHex('1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef')
+      const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
         {
-          nullifier: 'nullifier_test',
+          nullifier: testNullifier,
           txid: '0xtxid',
           blockNumber: 1200n
         }
@@ -76,20 +87,23 @@ describe('Nullifier Events', () => {
 
       const newState = applyNullifierEvents(state, events)
 
-      assert.equal(newState.nullifiers.has('nullifier_test'), true)
+      assert.equal(newState.nullifiers.has(toHex(testNullifier)), true)
     })
 
     it('handles multiple events in one call', () => {
-      const utxo1 = createMockUTXO({ nullifier: 'nullifier_1' })
-      const utxo2 = createMockUTXO({ nullifier: 'nullifier_2' })
-      const utxo3 = createMockUTXO({ nullifier: 'nullifier_3' })
+      const nullifier1 = fromHex('1111111111111111111111111111111111111111111111111111111111111111')
+      const nullifier2 = fromHex('2222222222222222222222222222222222222222222222222222222222222222')
+      const nullifier3 = fromHex('3333333333333333333333333333333333333333333333333333333333333333')
+      const utxo1 = createMockUTXO({ nullifier: nullifier1 })
+      const utxo2 = createMockUTXO({ nullifier: nullifier2 })
+      const utxo3 = createMockUTXO({ nullifier: nullifier3 })
 
       let state = createEmptyState()
       state = addUTXOs(state, [utxo1, utxo2, utxo3])
 
       const events: NullifierEvent[] = [
-        { nullifier: 'nullifier_1', txid: '0xtx1', blockNumber: 1500n },
-        { nullifier: 'nullifier_2', txid: '0xtx2', blockNumber: 1501n }
+        { nullifier: nullifier1, txid: '0xtx1', blockNumber: 1500n },
+        { nullifier: nullifier2, txid: '0xtx2', blockNumber: 1501n }
       ]
 
       const newState = applyNullifierEvents(state, events)
@@ -101,12 +115,14 @@ describe('Nullifier Events', () => {
     })
 
     it('ignores events for unknown nullifiers (no matching UTXO)', () => {
-      const utxo = createMockUTXO({ nullifier: 'known_nullifier' })
+      const knownNullifier = fromHex('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+      const unknownNullifier = fromHex('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+      const utxo = createMockUTXO({ nullifier: knownNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
-        { nullifier: 'unknown_nullifier', txid: '0xtx', blockNumber: 1500n }
+        { nullifier: unknownNullifier, txid: '0xtx', blockNumber: 1500n }
       ]
 
       const newState = applyNullifierEvents(state, events)
@@ -114,16 +130,17 @@ describe('Nullifier Events', () => {
       // UTXO should remain unspent
       assert.equal(newState.utxos[0]?.spent, false)
       // But nullifier should still be added to the set
-      assert.equal(newState.nullifiers.has('unknown_nullifier'), true)
+      assert.equal(newState.nullifiers.has(toHex(unknownNullifier)), true)
     })
 
     it('is idempotent - applying same event twice has no additional effect', () => {
-      const utxo = createMockUTXO({ nullifier: 'nullifier_idempotent' })
+      const testNullifier = fromHex('cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc')
+      const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
-        { nullifier: 'nullifier_idempotent', txid: '0xtx1', blockNumber: 1500n }
+        { nullifier: testNullifier, txid: '0xtx1', blockNumber: 1500n }
       ]
 
       // Apply once
@@ -133,7 +150,7 @@ describe('Nullifier Events', () => {
 
       // Apply again with different event data
       const events2: NullifierEvent[] = [
-        { nullifier: 'nullifier_idempotent', txid: '0xtx2', blockNumber: 1600n }
+        { nullifier: testNullifier, txid: '0xtx2', blockNumber: 1600n }
       ]
       newState = applyNullifierEvents(newState, events2)
 
@@ -144,8 +161,9 @@ describe('Nullifier Events', () => {
     })
 
     it('does not affect already-spent UTXOs', () => {
+      const testNullifier = fromHex('dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd')
       const utxo = createMockUTXO({
-        nullifier: 'already_spent',
+        nullifier: testNullifier,
         spent: true,
         spentTxid: '0xoriginal_tx',
         spentBlockNumber: 1000n
@@ -154,7 +172,7 @@ describe('Nullifier Events', () => {
       state = addUTXO(state, utxo)
 
       const events: NullifierEvent[] = [
-        { nullifier: 'already_spent', txid: '0xnew_tx', blockNumber: 1500n }
+        { nullifier: testNullifier, txid: '0xnew_tx', blockNumber: 1500n }
       ]
 
       const newState = applyNullifierEvents(state, events)
@@ -167,15 +185,16 @@ describe('Nullifier Events', () => {
 
   describe('handleReorg', () => {
     it('reverts UTXOs spent after reorg block', () => {
+      const testNullifier = fromHex('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
       const utxo = createMockUTXO({
-        nullifier: 'nullifier_reorg',
+        nullifier: testNullifier,
         spent: true,
         spentTxid: '0xtx',
         spentBlockNumber: 1500n
       })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
-      state.nullifiers.add('nullifier_reorg')
+      state.nullifiers.add(toHex(testNullifier))
 
       // Reorg at block 1400 - UTXO was spent at 1500, so should be reverted
       const newState = handleReorg(state, 1400n)
@@ -183,18 +202,20 @@ describe('Nullifier Events', () => {
       assert.equal(newState.utxos[0]?.spent, false)
       assert.equal(newState.utxos[0]?.spentTxid, undefined)
       assert.equal(newState.utxos[0]?.spentBlockNumber, undefined)
-      assert.equal(newState.nullifiers.has('nullifier_reorg'), false)
+      assert.equal(newState.nullifiers.has(toHex(testNullifier)), false)
     })
 
     it('keeps UTXOs spent at or before reorg block', () => {
+      const nullifier1 = fromHex('f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1f1')
+      const nullifier2 = fromHex('f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2f2')
       const utxo1 = createMockUTXO({
-        nullifier: 'nullifier_at_block',
+        nullifier: nullifier1,
         spent: true,
         spentTxid: '0xtx1',
         spentBlockNumber: 1500n
       })
       const utxo2 = createMockUTXO({
-        nullifier: 'nullifier_before_block',
+        nullifier: nullifier2,
         spent: true,
         spentTxid: '0xtx2',
         spentBlockNumber: 1400n
@@ -202,8 +223,8 @@ describe('Nullifier Events', () => {
 
       let state = createEmptyState()
       state = addUTXOs(state, [utxo1, utxo2])
-      state.nullifiers.add('nullifier_at_block')
-      state.nullifiers.add('nullifier_before_block')
+      state.nullifiers.add(toHex(nullifier1))
+      state.nullifiers.add(toHex(nullifier2))
 
       // Reorg at block 1500 - only UTXOs spent AFTER 1500 should be reverted
       const newState = handleReorg(state, 1500n)
@@ -211,33 +232,35 @@ describe('Nullifier Events', () => {
       // UTXO spent AT block 1500 should be kept
       assert.equal(newState.utxos[0]?.spent, true)
       assert.equal(newState.utxos[0]?.spentTxid, '0xtx1')
-      assert.equal(newState.nullifiers.has('nullifier_at_block'), true)
+      assert.equal(newState.nullifiers.has(toHex(nullifier1)), true)
 
       // UTXO spent BEFORE block 1500 should be kept
       assert.equal(newState.utxos[1]?.spent, true)
       assert.equal(newState.utxos[1]?.spentTxid, '0xtx2')
-      assert.equal(newState.nullifiers.has('nullifier_before_block'), true)
+      assert.equal(newState.nullifiers.has(toHex(nullifier2)), true)
     })
 
     it('removes nullifiers from set when reverting', () => {
+      const testNullifier = fromHex('f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3f3')
       const utxo = createMockUTXO({
-        nullifier: 'nullifier_to_remove',
+        nullifier: testNullifier,
         spent: true,
         spentTxid: '0xtx',
         spentBlockNumber: 1500n
       })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
-      state.nullifiers.add('nullifier_to_remove')
+      state.nullifiers.add(toHex(testNullifier))
 
       const newState = handleReorg(state, 1400n)
 
-      assert.equal(newState.nullifiers.has('nullifier_to_remove'), false)
+      assert.equal(newState.nullifiers.has(toHex(testNullifier)), false)
     })
 
     it('clears spentTxid and spentBlockNumber on reverted UTXOs', () => {
+      const testNullifier = fromHex('f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4f4')
       const utxo = createMockUTXO({
-        nullifier: 'nullifier_clear',
+        nullifier: testNullifier,
         spent: true,
         spentTxid: '0xtx_to_clear',
         spentBlockNumber: 2000n
@@ -273,14 +296,16 @@ describe('Nullifier Events', () => {
     })
 
     it('handles reorg at block 0 (reverts everything)', () => {
+      const nullifier1 = fromHex('f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5f5')
+      const nullifier2 = fromHex('f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6f6')
       const utxo1 = createMockUTXO({
-        nullifier: 'nullifier_1',
+        nullifier: nullifier1,
         spent: true,
         spentTxid: '0xtx1',
         spentBlockNumber: 100n
       })
       const utxo2 = createMockUTXO({
-        nullifier: 'nullifier_2',
+        nullifier: nullifier2,
         spent: true,
         spentTxid: '0xtx2',
         spentBlockNumber: 500n
@@ -288,8 +313,8 @@ describe('Nullifier Events', () => {
 
       let state = createEmptyState()
       state = addUTXOs(state, [utxo1, utxo2])
-      state.nullifiers.add('nullifier_1')
-      state.nullifiers.add('nullifier_2')
+      state.nullifiers.add(toHex(nullifier1))
+      state.nullifiers.add(toHex(nullifier2))
 
       const newState = handleReorg(state, 0n)
 
@@ -300,34 +325,38 @@ describe('Nullifier Events', () => {
     })
 
     it('handles mixed scenario with multiple UTXOs', () => {
+      const n1 = fromHex('f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7f7')
+      const n2 = fromHex('f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8f8')
+      const n3 = fromHex('f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9f9')
+      const n4 = fromHex('fafafafafafafafafafafafafafafafafafafafafafafafafafafafafafafafa')
       const utxo1 = createMockUTXO({
-        nullifier: 'n1',
+        nullifier: n1,
         spent: true,
         spentTxid: '0xtx1',
         spentBlockNumber: 900n
       })
       const utxo2 = createMockUTXO({
-        nullifier: 'n2',
+        nullifier: n2,
         spent: true,
         spentTxid: '0xtx2',
         spentBlockNumber: 1000n
       })
       const utxo3 = createMockUTXO({
-        nullifier: 'n3',
+        nullifier: n3,
         spent: true,
         spentTxid: '0xtx3',
         spentBlockNumber: 1100n
       })
       const utxo4 = createMockUTXO({
-        nullifier: 'n4',
+        nullifier: n4,
         spent: false
       })
 
       let state = createEmptyState()
       state = addUTXOs(state, [utxo1, utxo2, utxo3, utxo4])
-      state.nullifiers.add('n1')
-      state.nullifiers.add('n2')
-      state.nullifiers.add('n3')
+      state.nullifiers.add(toHex(n1))
+      state.nullifiers.add(toHex(n2))
+      state.nullifiers.add(toHex(n3))
 
       // Reorg at block 1000
       const newState = handleReorg(state, 1000n)
@@ -344,9 +373,9 @@ describe('Nullifier Events', () => {
       assert.equal(newState.utxos[3]?.spent, false)
 
       // Nullifiers check
-      assert.equal(newState.nullifiers.has('n1'), true)
-      assert.equal(newState.nullifiers.has('n2'), true)
-      assert.equal(newState.nullifiers.has('n3'), false)
+      assert.equal(newState.nullifiers.has(toHex(n1)), true)
+      assert.equal(newState.nullifiers.has(toHex(n2)), true)
+      assert.equal(newState.nullifiers.has(toHex(n3)), false)
     })
   })
 })

@@ -1,5 +1,6 @@
 import type { UTXO, UTXOState, SerializedUTXO, SerializedUTXOState } from './models'
 import { applyNullifierUpdates } from './nullifiers'
+import { toHex, fromHex } from './utils'
 
 /**
  * Creates an empty UTXO state.
@@ -58,11 +59,12 @@ export function addUTXOs(state: UTXOState, utxos: UTXO[]): UTXOState {
  * @returns New state with UTXO marked as spent
  *
  * @example
- * const newState = markSpent(state, '0xabc...', '0x123...', 1000n)
+ * const nullifier = fromHex('abc...')
+ * const newState = markSpent(state, nullifier, '0x123...', 1000n)
  */
 export function markSpent(
   state: UTXOState,
-  nullifier: string,
+  nullifier: Uint8Array,
   txid: string,
   blockNumber?: bigint
 ): UTXOState {
@@ -74,16 +76,17 @@ export function markSpent(
 
 /**
  * Applies an array of nullifiers to mark UTXOs as spent.
- * This is a basic version that only takes nullifier strings.
+ * This is a basic version that only takes nullifier byte arrays.
  *
  * @param state - Current UTXO state
- * @param nullifiers - Array of nullifier strings
+ * @param nullifiers - Array of nullifier byte arrays
  * @returns New state with matching UTXOs marked as spent
  *
  * @example
- * const newState = applyNullifiers(state, ['0xabc...', '0xdef...'])
+ * const nullifiers = [fromHex('abc...'), fromHex('def...')]
+ * const newState = applyNullifiers(state, nullifiers)
  */
-export function applyNullifiers(state: UTXOState, nullifiers: string[]): UTXOState {
+export function applyNullifiers(state: UTXOState, nullifiers: Uint8Array[]): UTXOState {
   const updates = nullifiers.map(nullifier => ({ nullifier, txid: 'unknown' }))
   return applyNullifierUpdates(state, updates)
 }
@@ -113,27 +116,31 @@ export function setSyncedBlock(state: UTXOState, blockNumber: bigint): UTXOState
  * @returns UTXO if found, undefined otherwise
  *
  * @example
- * const utxo = getUTXO(state, '0xabc...')
+ * const commitment = fromHex('abc...')
+ * const utxo = getUTXO(state, commitment)
  */
-export function getUTXO(state: UTXOState, commitment: string): UTXO | undefined {
-  return state.utxos.find(utxo => utxo.commitment === commitment)
+export function getUTXO(state: UTXOState, commitment: Uint8Array): UTXO | undefined {
+  const commitmentHex = toHex(commitment)
+  return state.utxos.find(utxo => toHex(utxo.commitment) === commitmentHex)
 }
 
 /**
  * Gets all spendable (unspent) UTXOs, optionally filtered by token.
  *
  * @param state - Current UTXO state
- * @param token - Optional token address to filter by
+ * @param token - Optional token address (as byte array) to filter by
  * @returns Array of spendable UTXOs
  *
  * @example
- * const spendable = getSpendableUTXOs(state, '0xtoken...')
+ * const token = fromHex('token...')
+ * const spendable = getSpendableUTXOs(state, token)
  */
-export function getSpendableUTXOs(state: UTXOState, token?: string): UTXO[] {
+export function getSpendableUTXOs(state: UTXOState, token?: Uint8Array): UTXO[] {
   let utxos = state.utxos.filter(utxo => !utxo.spent)
 
   if (token) {
-    utxos = utxos.filter(utxo => utxo.token === token)
+    const tokenHex = toHex(token)
+    utxos = utxos.filter(utxo => toHex(utxo.token) === tokenHex)
   }
 
   return utxos
@@ -147,10 +154,11 @@ export function getSpendableUTXOs(state: UTXOState, token?: string): UTXO[] {
  * @returns True if spent, false otherwise
  *
  * @example
- * const spent = isSpent(state, '0xabc...')
+ * const nullifier = fromHex('abc...')
+ * const spent = isSpent(state, nullifier)
  */
-export function isSpent(state: UTXOState, nullifier: string): boolean {
-  return state.nullifiers.has(nullifier)
+export function isSpent(state: UTXOState, nullifier: Uint8Array): boolean {
+  return state.nullifiers.has(toHex(nullifier))
 }
 
 /**
@@ -161,11 +169,11 @@ export function isSpent(state: UTXOState, nullifier: string): boolean {
  */
 export function serializeUTXO(utxo: UTXO): SerializedUTXO {
   const serialized: SerializedUTXO = {
-    commitment: utxo.commitment,
-    nullifier: utxo.nullifier,
+    commitment: toHex(utxo.commitment),
+    nullifier: toHex(utxo.nullifier),
     treeNumber: utxo.treeNumber.toString(),
     leafIndex: utxo.leafIndex.toString(),
-    token: utxo.token,
+    token: toHex(utxo.token),
     value: utxo.value.toString(),
     blockNumber: utxo.blockNumber.toString(),
     spent: utxo.spent
@@ -190,11 +198,11 @@ export function serializeUTXO(utxo: UTXO): SerializedUTXO {
  */
 export function deserializeUTXO(serialized: SerializedUTXO): UTXO {
   const utxo: UTXO = {
-    commitment: serialized.commitment,
-    nullifier: serialized.nullifier,
+    commitment: fromHex(serialized.commitment),
+    nullifier: fromHex(serialized.nullifier),
     treeNumber: BigInt(serialized.treeNumber),
     leafIndex: BigInt(serialized.leafIndex),
-    token: serialized.token,
+    token: fromHex(serialized.token),
     value: BigInt(serialized.value),
     blockNumber: BigInt(serialized.blockNumber),
     spent: serialized.spent
@@ -248,3 +256,4 @@ export function deserializeState(serialized: SerializedUTXOState): UTXOState {
 }
 
 export * from './models'
+export * from './utils'

@@ -3,15 +3,15 @@
  */
 export interface UTXO {
   /** The commitment hash for this UTXO */
-  commitment: string
+  commitment: Uint8Array
   /** The nullifier hash (revealed when spent) */
-  nullifier: string
+  nullifier: Uint8Array
   /** Merkle tree number where this UTXO is stored */
   treeNumber: bigint
   /** Leaf index within the merkle tree */
   leafIndex: bigint
-  /** Token address */
-  token: string
+  /** Token address (hash) */
+  token: Uint8Array
   /** UTXO value */
   value: bigint
   /** Block number where this UTXO was created */
@@ -39,13 +39,14 @@ export interface UTXOState {
 /**
  * Serialized version of UTXO for storage/transmission.
  * BigInt fields are converted to strings.
+ * Uint8Array fields are converted to hex strings.
  */
 export interface SerializedUTXO {
-  commitment: string
-  nullifier: string
+  commitment: string  // hex string
+  nullifier: string   // hex string
   treeNumber: string
   leafIndex: string
-  token: string
+  token: string       // hex string
   value: string
   blockNumber: string
   spent: boolean

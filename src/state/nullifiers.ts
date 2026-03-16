@@ -1,7 +1,8 @@
 import type { UTXO, UTXOState } from './models'
+import { toHex } from './utils'
 
 export interface NullifierUpdate {
-  nullifier: string
+  nullifier: Uint8Array
   txid: string
   blockNumber?: bigint
 }
@@ -14,8 +15,9 @@ export function applyNullifierUpdates(
   const updateMap = new Map<string, NullifierUpdate>()
 
   for (const update of updates) {
-    newNullifiers.add(update.nullifier)
-    updateMap.set(update.nullifier, update)
+    const nullifierHex = toHex(update.nullifier)
+    newNullifiers.add(nullifierHex)
+    updateMap.set(nullifierHex, update)
   }
 
   if (updateMap.size === 0) {
@@ -23,7 +25,8 @@ export function applyNullifierUpdates(
   }
 
   const newUtxos = state.utxos.map(utxo => {
-    const update = updateMap.get(utxo.nullifier)
+    const nullifierHex = toHex(utxo.nullifier)
+    const update = updateMap.get(nullifierHex)
     if (update && !utxo.spent) {
       const updated: UTXO = {
         ...utxo,
