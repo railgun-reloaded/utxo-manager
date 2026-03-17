@@ -1,11 +1,21 @@
-import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { UTXO } from '../../src/state/models'
-import type { NullifierEvent } from '../../src/state/events'
-import { createEmptyState, addUTXO, addUTXOs, fromHex, toHex } from '../../src/state'
-import { applyNullifierEvents, handleReorg } from '../../src/state/events'
+import { describe, it } from 'node:test'
 
-function createMockUTXO(overrides: Partial<UTXO> = {}): UTXO {
+import { addUTXO, addUTXOs, createEmptyState, fromHex, toHex } from '../../src/state'
+import type { NullifierEvent } from '../../src/state/events'
+import { applyNullifierEvents, handleReorg } from '../../src/state/events'
+import type { UTXO } from '../../src/state/models'
+
+/**
+ * Creates a mock UTXO for testing purposes.
+ * @param overrides - Optional properties to override in the mock UTXO
+ * @returns A mock UTXO with random or provided values
+ */
+function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
+  /**
+   * Generates a random 32-byte array for testing.
+   * @returns Random Uint8Array of 32 bytes
+   */
   const randomHex = () => {
     const bytes = new Uint8Array(32)
     for (let i = 0; i < bytes.length; i++) {

@@ -1,3 +1,7 @@
+import type { UTXOSolver } from './interfaces'
+import { GreedySolver } from './solver'
+import { RailgunSolver } from './spend/solution'
+
 export * from './solver'
 export * from './state'
 export * from './state/events'
@@ -11,10 +15,6 @@ export { BaseSolver } from './base-solver'
 export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
 export { selectInputsForTarget, findExactMatch } from './solutions/selection'
 export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
-
-import type { UTXOSolver } from './interfaces'
-import { GreedySolver } from './solver'
-import { RailgunSolver } from './spend/solution'
 
 /**
  * Create a solver instance by type.

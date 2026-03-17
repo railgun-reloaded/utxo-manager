@@ -7,7 +7,13 @@ export interface NullifierUpdate {
   blockNumber?: bigint
 }
 
-export function applyNullifierUpdates(
+/**
+ * Applies nullifier updates to mark UTXOs as spent in the state.
+ * @param state - Current UTXO state to update
+ * @param updates - Iterable of nullifier updates containing spend information
+ * @returns Updated state with UTXOs marked as spent
+ */
+export function applyNullifierUpdates (
   state: UTXOState,
   updates: Iterable<NullifierUpdate>
 ): UTXOState {

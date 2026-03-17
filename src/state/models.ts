@@ -1,7 +1,7 @@
 /**
  * Represents a UTXO (Unspent Transaction Output) in the RAILGUN system.
  */
-export interface UTXO {
+interface UTXO {
   /** The commitment hash for this UTXO */
   commitment: Uint8Array
   /** The nullifier hash (revealed when spent) */
@@ -27,7 +27,7 @@ export interface UTXO {
 /**
  * Represents the complete state of UTXOs.
  */
-export interface UTXOState {
+interface UTXOState {
   /** List of all UTXOs */
   utxos: UTXO[]
   /** Set of all known nullifiers (for quick lookup) */
@@ -41,7 +41,7 @@ export interface UTXOState {
  * BigInt fields are converted to strings.
  * Uint8Array fields are converted to hex strings.
  */
-export interface SerializedUTXO {
+interface SerializedUTXO {
   commitment: string  // hex string
   nullifier: string   // hex string
   treeNumber: string
@@ -57,8 +57,10 @@ export interface SerializedUTXO {
 /**
  * Serialized version of UTXOState for storage/transmission.
  */
-export interface SerializedUTXOState {
+interface SerializedUTXOState {
   utxos: SerializedUTXO[]
   nullifiers: string[]
   syncedBlock: string
 }
+
+export type { SerializedUTXO, SerializedUTXOState, UTXO, UTXOState }
