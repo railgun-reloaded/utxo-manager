@@ -18,6 +18,7 @@
   },
   "scripts": {
     "build": "tsc --build",
+    "prepare": "tsc --build",
     "clean": "tsc --build --clean",
     "lint": "eslint",
     "lint:fix": "eslint --fix",
