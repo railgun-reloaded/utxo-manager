@@ -1,5 +1,5 @@
-import type { Test } from 'brittle'
-import test from 'brittle'
+import assert from 'node:assert/strict'
+import { test } from 'node:test'
 
 import type { Input, OutputSolution, SpendingSolutionInput } from '../src/index'
 import { SpendingSolution, getSpendingSolution } from '../src/index'
@@ -23,16 +23,15 @@ function createRandomTestInputs (count: number): Input[] {
 
 /**
  * Validate test case.
- * @param t - Test instance
  * @param desiredSolution - Expected solution
  * @param solution - Actual solution
  */
-function validateRandomTestCase (t: Test, desiredSolution: SpendingSolutionInput, solution: OutputSolution): void {
+function validateRandomTestCase (desiredSolution: SpendingSolutionInput, solution: OutputSolution): void {
   // console.log("Desired Amount", desiredSolution.amount);
   // console.log('Generated Solution:', solution);
   // validate inputs
-  t.ok(solution.inputs.length > 0, 'Solution should include inputs.')
-  t.is(solution.outputs.length, 2, 'Solution Simple: should include 2 outputs.')
+  assert.ok(solution.inputs.length > 0, 'Solution should include inputs.')
+  assert.equal(solution.outputs.length, 2, 'Solution Simple: should include 2 outputs.')
 
   // validate outputs
   let totalOutputValue = 0n
@@ -40,16 +39,15 @@ function validateRandomTestCase (t: Test, desiredSolution: SpendingSolutionInput
     totalOutputValue += output.value
   })
 
-  t.ok(totalOutputValue >= desiredSolution.amount, 'Solution amount should match or exceed desired amount.')
-  t.ok(solution.outputs.some(output => output.recipientAddress === desiredSolution.recipientAddress), 'Solution should include the recipient address.')
+  assert.ok(totalOutputValue >= desiredSolution.amount, 'Solution amount should match or exceed desired amount.')
+  assert.ok(solution.outputs.some(output => output.recipientAddress === desiredSolution.recipientAddress), 'Solution should include the recipient address.')
 }
 
 /**
  * Run random test cases.
- * @param t - Test instance
  * @param testCaseCount - Number of test cases
  */
-function runRandomTestCases (t: Test, testCaseCount: number): void {
+function runRandomTestCases (testCaseCount: number): void {
   for (let i = 0; i < testCaseCount; i++) {
     const testInputs = createRandomTestInputs(100)
     const changeAddress = `0zkaddress${Math.random().toString(36).substring(2, 10)}CHANGE`
@@ -62,18 +60,18 @@ function runRandomTestCases (t: Test, testCaseCount: number): void {
     }
 
     const solution = getSpendingSolution(desiredSolution)
-    t.ok(solution, 'Solution should be defined.')
+    assert.ok(solution, 'Solution should be defined.')
     if (solution) {
-      validateRandomTestCase(t, desiredSolution, solution)
+      validateRandomTestCase(desiredSolution, solution)
     }
   }
 }
 
-test('Should pass all randomized test cases.', (t) => {
-  runRandomTestCases(t, 32)
+test('Should pass all randomized test cases.', () => {
+  runRandomTestCases(32)
 })
 
-test('Should generate a valid solution for random inputs.', (t) => {
+test('Should generate a valid solution for random inputs.', () => {
   const testInputs = createRandomTestInputs(5)
   const desiredSolution: SpendingSolutionInput = {
     recipientAddress: '0zkaddressRandom',
@@ -84,22 +82,22 @@ test('Should generate a valid solution for random inputs.', (t) => {
   }
 
   const solution = getSpendingSolution(desiredSolution)
-  t.ok(solution, 'Solution should be defined.')
+  assert.ok(solution, 'Solution should be defined.')
   // console.log('Generated Solution:', solution);
 
   if (solution) {
-    t.ok(solution.inputs.length > 0, 'Solution should include inputs.')
+    assert.ok(solution.inputs.length > 0, 'Solution should include inputs.')
     // get map amount
     let amount = 0n
     solution.outputs.forEach((acc) => {
       amount += acc.value
     })
     // console.log(amount, desiredSolution)
-    t.ok(amount >= desiredSolution.amount, 'Solution amount should match desired amount.')
+    assert.ok(amount >= desiredSolution.amount, 'Solution amount should match desired amount.')
   }
 })
 
-test('Should handle edge cases with no inputs.', (t) => {
+test('Should handle edge cases with no inputs.', () => {
   const desiredSolution: SpendingSolutionInput = {
     recipientAddress: '0zkaddressEdgeCase',
     inputs: [],
@@ -110,10 +108,10 @@ test('Should handle edge cases with no inputs.', (t) => {
   }
 
   const solution = getSpendingSolution(desiredSolution)
-  t.is(solution, undefined, 'Solution should be undefined.')
+  assert.equal(solution, undefined, 'Solution should be undefined.')
 })
 
-test('Should handle large input values.', (t) => {
+test('Should handle large input values.', () => {
   const testInputs: Input[] = [
     { commitmentIndex: 0n, treeNumber: 0n, value: 10_000n },
     { commitmentIndex: 1n, treeNumber: 0n, value: 20_000n },
@@ -129,16 +127,16 @@ test('Should handle large input values.', (t) => {
   }
 
   const solution = getSpendingSolution(desiredSolution)
-  t.ok(solution, 'Solution should be defined.')
+  assert.ok(solution, 'Solution should be defined.')
   // console.log('Large Values Solution:', solution);
 
   if (solution) {
-    t.ok(solution.inputs.length > 0, 'Solution should include inputs.')
+    assert.ok(solution.inputs.length > 0, 'Solution should include inputs.')
   }
   // assert(solution.outputs[0]?.value === desiredSolution.amount, "Solution amount should match desired amount.");
 })
 
-test('Should pick the most efficient solution and prefer larger change on ties.', (t) => {
+test('Should pick the most efficient solution and prefer larger change on ties.', () => {
   const changeAddress = '0zkaddressChange'
   const recipientAddress = '0zkaddressRecipient'
   const desiredSolution: SpendingSolutionInput = {
@@ -155,18 +153,18 @@ test('Should pick the most efficient solution and prefer larger change on ties.'
   }
 
   const solution = getSpendingSolution(desiredSolution)
-  t.ok(solution, 'Solution should be defined.')
+  assert.ok(solution, 'Solution should be defined.')
   if (solution) {
-    t.is(solution.inputs[0]?.treeNumber, 2n, 'Should select tree with larger change.')
+    assert.equal(solution.inputs[0]?.treeNumber, 2n, 'Should select tree with larger change.')
 
     const changeOutput = solution.outputs.find(
       (output) => output.recipientAddress === changeAddress
     )
-    t.is(changeOutput?.value, 10n, 'Should prefer solution with larger change.')
+    assert.equal(changeOutput?.value, 10n, 'Should prefer solution with larger change.')
   }
 })
 
-test('Should choose the last solution if it has better efficiency.', (t) => {
+test('Should choose the last solution if it has better efficiency.', () => {
   const changeAddress = '0zkaddressChange'
   const recipientAddress = '0zkaddressRecipient'
   const desiredSolution: SpendingSolutionInput = {
@@ -184,9 +182,9 @@ test('Should choose the last solution if it has better efficiency.', (t) => {
   }
 
   const solution = getSpendingSolution(desiredSolution)
-  t.ok(solution, 'Solution should be defined.')
+  assert.ok(solution, 'Solution should be defined.')
   if (solution) {
-    t.is(solution.inputs.length, 2, 'Should choose the more efficient 2-input solution.')
-    t.is(solution.inputs[0]?.treeNumber, 2n, 'Should select the later tree with better efficiency.')
+    assert.equal(solution.inputs.length, 2, 'Should choose the more efficient 2-input solution.')
+    assert.equal(solution.inputs[0]?.treeNumber, 2n, 'Should select the later tree with better efficiency.')
   }
 })

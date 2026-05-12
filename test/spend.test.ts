@@ -1,4 +1,4 @@
-import test from 'brittle'
+import { test } from 'node:test'
 
 import { SpendingSolution } from '../src'
 import type { SpendInput, SpendIntent } from '../src/spend'
