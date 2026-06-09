@@ -47,15 +47,15 @@ class GreedySolver extends BaseSolver<
         input.tokenSubID === solution.tokenSubID
     )
 
+    if (solution.tokenType === TokenType.ERC20) {
+      return this.solveERC20(solution, identityFiltered)
+    }
+
     if (solution.tokenType === TokenType.ERC721) {
       return this.solveERC721(solution, identityFiltered)
     }
 
-    if (solution.tokenType !== TokenType.ERC20) {
-      throw new Error(`Unsupported token type: ${String(solution.tokenType)}`)
-    }
-
-    return this.solveERC20(solution, identityFiltered)
+    throw new Error(`Unsupported token type: ${String(solution.tokenType)}`)
   }
 
   /**

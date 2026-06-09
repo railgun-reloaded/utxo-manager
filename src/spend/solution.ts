@@ -53,23 +53,23 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       const reference = recipients[0]
       if (!reference) return
 
+      if (reference.tokenType === TokenType.ERC20) {
+        if (inputs.length === 0) {
+          solutions.push({ error: true, intent })
+          return
+        }
+        const result = this.solveERC20Group(intent, recipients, inputs)
+        solutions.push(result ?? { error: true, intent })
+        return
+      }
+
       if (reference.tokenType === TokenType.ERC721) {
         const result = this.solveERC721Group(recipients, inputs)
         solutions.push(result)
         return
       }
 
-      if (reference.tokenType !== TokenType.ERC20) {
-        throw new Error(`Unsupported token type: ${String(reference.tokenType)}`)
-      }
-
-      if (inputs.length === 0) {
-        solutions.push({ error: true, intent })
-        return
-      }
-
-      const result = this.solveERC20Group(intent, recipients, inputs)
-      solutions.push(result ?? { error: true, intent })
+      throw new Error(`Unsupported token type: ${String(reference.tokenType)}`)
     })
 
     return this.resolveComplexSolutions(utxos, solutions)
