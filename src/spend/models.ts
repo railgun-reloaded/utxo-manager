@@ -1,13 +1,14 @@
-import type { SpendingSolution } from '../models'
+import type { SpendingSolution, TokenType } from '../models'
 
 type SpendRecipient = {
   tokenAddress: string,
+  tokenType: TokenType,
+  tokenSubID: string,
   railgunAddress: string,
   amount: bigint
 }
 
 type SpendIntent = {
-  // tokenAddress: string,
   changeAddress: string,
   recipients: SpendRecipient[]
   type: SpendingSolution
@@ -15,6 +16,8 @@ type SpendIntent = {
 
 type SpendInput = {
   tokenAddress: string,
+  tokenType: TokenType,
+  tokenSubID: string,
   treeNumber: bigint,
   leafIndex: bigint,
   value: bigint

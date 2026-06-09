@@ -2,7 +2,8 @@ import { BaseSolver } from './base-solver'
 import type { SolveParams, SolveResult } from './interfaces'
 import { SolverKind } from './interfaces'
 import type { Input, OutputSolution, SpendingSolutionInput } from './models'
-import { SpendingSolution } from './models'
+import { SpendingSolution, TokenType } from './models'
+import { NFTNotOwnedOrSpentError, selectNFTInput } from './solutions/nft-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from './solutions/nullifiers'
 import { selectInputsForTarget } from './solutions/selection'
 import {
@@ -23,7 +24,9 @@ class GreedySolver extends BaseSolver<
   readonly name = SolverKind.Greedy
 
   /**
-   * Solve spending solution.
+   * Solve spending solution. Dispatches on `tokenType`: ERC20 uses the
+   * existing sum-to-target path; ERC721 takes the short-circuit single-input
+   * lookup. Other token types throw an unsupported-type error.
    * @param params - Solve parameters
    * @returns Solution result
    */
@@ -39,7 +42,36 @@ class GreedySolver extends BaseSolver<
 
     if (solution.amount <= 0n) return undefined
 
-    const filteredInputs = filterZeroUTXOs(solution.inputs)
+    const identityFiltered = solution.inputs.filter(
+      (input) =>
+        input.tokenAddress === solution.tokenAddress &&
+        input.tokenType === solution.tokenType &&
+        input.tokenSubID === solution.tokenSubID
+    )
+
+    if (solution.tokenType === TokenType.ERC721) {
+      return this.solveERC721(solution, identityFiltered)
+    }
+
+    if (solution.tokenType !== TokenType.ERC20) {
+      throw new Error(`Unsupported token type: ${String(solution.tokenType)}`)
+    }
+
+    return this.solveERC20(solution, identityFiltered)
+  }
+
+  /**
+   * ERC20 sum-to-target path. Picks inputs across trees and emits a change
+   * output when `value_in - value_out > 0`.
+   * @param solution - Spending solution input.
+   * @param identityFiltered - Inputs already filtered to the target token identity.
+   * @returns Output solution or undefined when no tree can cover the amount.
+   */
+  private solveERC20 (
+    solution: SpendingSolutionInput,
+    identityFiltered: Input[]
+  ): OutputSolution | undefined {
+    const filteredInputs = filterZeroUTXOs(identityFiltered)
     if (filteredInputs.length === 0) return undefined
 
     const sortFn =
@@ -65,6 +97,9 @@ class GreedySolver extends BaseSolver<
 
       const outputs = [
         {
+          tokenAddress: solution.tokenAddress,
+          tokenType: solution.tokenType,
+          tokenSubID: solution.tokenSubID,
           value: solution.amount,
           recipientAddress: solution.recipientAddress,
         },
@@ -73,6 +108,9 @@ class GreedySolver extends BaseSolver<
       const change = selection.total - solution.amount
       if (change > 0n) {
         outputs.push({
+          tokenAddress: solution.tokenAddress,
+          tokenType: solution.tokenType,
+          tokenSubID: solution.tokenSubID,
           value: change,
           recipientAddress: solution.changeAddress,
         })
@@ -94,6 +132,41 @@ class GreedySolver extends BaseSolver<
       isValidInputOutputCount
     )
   }
+
+  /**
+   * ERC721 short-circuit path. Picks the single unspent input matching the
+   * target identity (`amount` must be 1) and emits no change.
+   * @param solution - Spending solution input. `amount` must equal 1n.
+   * @param identityFiltered - Inputs already filtered to the target token identity.
+   * @returns Output solution carrying exactly one input and one output.
+   * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
+   */
+  private solveERC721 (
+    solution: SpendingSolutionInput,
+    identityFiltered: Input[]
+  ): OutputSolution {
+    if (solution.amount !== 1n) {
+      throw new Error(`ERC721 spend amount must be 1, got ${solution.amount}`)
+    }
+
+    const match = selectNFTInput(identityFiltered, {
+      collection: solution.tokenAddress,
+      tokenId: solution.tokenSubID,
+    })
+
+    return {
+      inputs: [match],
+      outputs: [
+        {
+          tokenAddress: solution.tokenAddress,
+          tokenType: solution.tokenType,
+          tokenSubID: solution.tokenSubID,
+          value: 1n,
+          recipientAddress: solution.recipientAddress,
+        },
+      ],
+    }
+  }
 }
 
 const defaultGreedySolver = new GreedySolver()
@@ -109,5 +182,5 @@ const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | 
     | undefined
 }
 
-export { getSpendingSolution, SpendingSolution, GreedySolver }
-export type { SpendingSolutionInput, Input }
+export { getSpendingSolution, GreedySolver, NFTNotOwnedOrSpentError, SpendingSolution }
+export type { Input, SpendingSolutionInput }

@@ -14,6 +14,8 @@ export { SolverKind } from './interfaces'
 export { BaseSolver } from './base-solver'
 export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
 export { selectInputsForTarget, findExactMatch } from './solutions/selection'
+export { NFTNotOwnedOrSpentError, selectNFTInput } from './solutions/nft-selection'
+export type { NFTIdentity, NFTSelectableInput } from './solutions/nft-selection'
 export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
 
 /**

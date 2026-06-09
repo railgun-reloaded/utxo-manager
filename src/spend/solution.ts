@@ -1,7 +1,8 @@
 import { BaseSolver } from '../base-solver'
 import type { SolveParams, SolveResult } from '../interfaces'
 import { SolverKind } from '../interfaces'
-import { SpendingSolution } from '../models'
+import { SpendingSolution, TokenType, tokenIdentityKey } from '../models'
+import { NFTNotOwnedOrSpentError, selectNFTInput } from '../solutions/nft-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
 import { selectInputsForTarget } from '../solutions/selection'
 import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
@@ -10,6 +11,7 @@ import type {
   BadSpendOutput,
   SpendInput,
   SpendIntent,
+  SpendRecipient,
   SpendTransaction,
   SpendTreeOutput,
 } from './models'
@@ -22,7 +24,9 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   readonly name = SolverKind.Railgun
 
   /**
-   * Solve spending intent.
+   * Solve spending intent. Inputs and recipients are grouped by complete
+   * token identity `(tokenAddress, tokenType, tokenSubID)`, so two ERC721
+   * IDs from the same collection produce two independent solutions.
    * @param params - Solve parameters
    * @returns Solution result
    */
@@ -31,97 +35,162 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       throw new Error(`RailgunSolver expects params.kind === '${SolverKind.Railgun}'`)
     }
 
-    const { intent, utxos, isComplex = false } = params
-    const rawInputs = this.getSolutionInputs(intent, utxos, isComplex)
+    const { intent, utxos } = params
     const solutions: (SpendTreeOutput | BadSpendOutput)[] = []
 
-    rawInputs.forEach((raw: SpendInput[]) => {
-      const inputs = filterZeroUTXOs(raw)
-      if (inputs.length === 0) return
-
-      const sortFn =
-        intent.type === SpendingSolution.Consolidation
-          ? sortUTXOsByDescendingValue
-          : sortUTXOsByAscendingValue
-      const preferHigherEfficiency = intent.type === SpendingSolution.Consolidation
-
-      const { availableTrees, sortedInputs } = this.getTreeInputs(inputs, sortFn)
-      const treeSolutions: SpendTreeOutput[] = []
-      const currentTokenAddress = inputs[0]?.tokenAddress
-      const filteredRecipients = intent.recipients.filter(
-        (recipient) => recipient.tokenAddress === currentTokenAddress
-      )
-      const intentTotal = filteredRecipients.reduce((left, right) => left + right.amount, 0n)
-
-      Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
-        const treeValue = availableTrees[treeNumber] ?? 0n
-        if (treeValue < intentTotal) return
-
-        const selection = selectInputsForTarget(
-          treeInputs,
-          intentTotal,
-          MAX_INPUTS,
-          sortFn
-        )
-        if (!selection) return
-
-        const treeOutput: SpendTreeOutput = {
-          inputs: selection.inputs,
-          outputs: filteredRecipients.map((recipient) => ({
-            value: recipient.amount,
-            railgunAddress: recipient.railgunAddress,
-          })),
-        }
-
-        const changeAmount = selection.total - intentTotal
-        if (changeAmount > 0n) {
-          treeOutput.outputs.push({
-            value: changeAmount,
-            railgunAddress: intent.changeAddress,
-          })
-        }
-
-        treeSolutions.push(treeOutput)
-      })
-
-      const efficientSolution = this.pickBestSolution(
-        treeSolutions,
-        intent.changeAddress,
-        (output) => output.railgunAddress,
-        preferHigherEfficiency,
-        isValidInputOutputCount
-      )
-
-      if (efficientSolution) {
-        solutions.push(efficientSolution)
+    const recipientsByIdentity = new Map<string, SpendRecipient[]>()
+    intent.recipients.forEach((recipient) => {
+      const key = tokenIdentityKey(recipient)
+      const bucket = recipientsByIdentity.get(key)
+      if (bucket) {
+        bucket.push(recipient)
       } else {
-        solutions.push({ error: true, intent })
+        recipientsByIdentity.set(key, [recipient])
       }
+    })
+
+    recipientsByIdentity.forEach((recipients, identityKey) => {
+      const inputs = utxos.filter((utxo) => tokenIdentityKey(utxo) === identityKey)
+      const reference = recipients[0]
+      if (!reference) return
+
+      if (reference.tokenType === TokenType.ERC721) {
+        // Empty input set for an ERC721 identity means the wallet does not
+        // own this NFT (or it has been spent already). Surface a typed
+        // error rather than silently dropping the recipient.
+        const result = this.solveERC721Group(recipients, inputs)
+        solutions.push(result)
+        return
+      }
+
+      if (reference.tokenType !== TokenType.ERC20) {
+        throw new Error(`Unsupported token type: ${String(reference.tokenType)}`)
+      }
+
+      if (inputs.length === 0) {
+        solutions.push({ error: true, intent })
+        return
+      }
+
+      const result = this.solveERC20Group(intent, recipients, inputs)
+      solutions.push(result ?? { error: true, intent })
     })
 
     return this.resolveComplexSolutions(utxos, solutions)
   }
 
   /**
-   * Get inputs grouped by token.
-   * @param intent - Spending intent
-   * @param utxos - Available UTXOs
-   * @param _isComplex - Whether complex solution
-   * @returns Grouped inputs
+   * ERC20 sum-to-target group solution. Picks inputs across trees and emits
+   * change when `value_in - value_out > 0`.
+   * @param intent - Spending intent (for change address + type).
+   * @param recipients - Recipients filtered to a single token identity.
+   * @param inputs - Inputs filtered to the same token identity.
+   * @returns Best tree solution, or `undefined` when no tree covers the amount.
    */
-  private getSolutionInputs (
+  private solveERC20Group (
     intent: SpendIntent,
-    utxos: SpendInput[],
-    _isComplex: boolean
-  ): SpendInput[][] {
-    const tokens = new Set<string>()
-    intent.recipients.forEach((recipient) => tokens.add(recipient.tokenAddress))
+    recipients: SpendRecipient[],
+    inputs: SpendInput[]
+  ): SpendTreeOutput | undefined {
+    const filtered = filterZeroUTXOs(inputs)
+    if (filtered.length === 0) return undefined
 
-    const inputs: SpendInput[][] = []
-    tokens.forEach((token) => {
-      inputs.push(utxos.filter((utxo) => utxo.tokenAddress === token))
+    const sortFn =
+      intent.type === SpendingSolution.Consolidation
+        ? sortUTXOsByDescendingValue
+        : sortUTXOsByAscendingValue
+    const preferHigherEfficiency = intent.type === SpendingSolution.Consolidation
+
+    const { availableTrees, sortedInputs } = this.getTreeInputs(filtered, sortFn)
+    const treeSolutions: SpendTreeOutput[] = []
+
+    const intentTotal = recipients.reduce((left, right) => left + right.amount, 0n)
+
+    Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
+      const treeValue = availableTrees[treeNumber] ?? 0n
+      if (treeValue < intentTotal) return
+
+      const selection = selectInputsForTarget(
+        treeInputs,
+        intentTotal,
+        MAX_INPUTS,
+        sortFn
+      )
+      if (!selection) return
+
+      const treeOutput: SpendTreeOutput = {
+        inputs: selection.inputs,
+        outputs: recipients.map((recipient) => ({
+          value: recipient.amount,
+          railgunAddress: recipient.railgunAddress,
+        })),
+      }
+
+      const changeAmount = selection.total - intentTotal
+      if (changeAmount > 0n) {
+        treeOutput.outputs.push({
+          value: changeAmount,
+          railgunAddress: intent.changeAddress,
+        })
+      }
+
+      treeSolutions.push(treeOutput)
     })
-    return inputs
+
+    return this.pickBestSolution(
+      treeSolutions,
+      intent.changeAddress,
+      (output) => output.railgunAddress,
+      preferHigherEfficiency,
+      isValidInputOutputCount
+    )
+  }
+
+  /**
+   * ERC721 short-circuit group solution. Emits one input and one output per
+   * recipient with no change (since `value_in - value_out` is always 0 for
+   * an ERC721 spend).
+   * @param recipients - Recipients filtered to a single ERC721 identity.
+   *   Must contain exactly one recipient — an NFT can only be sent to one
+   *   destination.
+   * @param inputs - Inputs filtered to the same ERC721 identity.
+   * @returns Tree output with one input and one output.
+   * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
+   * @throws {Error} When the recipient count is not exactly one.
+   */
+  private solveERC721Group (
+    recipients: SpendRecipient[],
+    inputs: SpendInput[]
+  ): SpendTreeOutput {
+    if (recipients.length !== 1) {
+      throw new Error(
+        `ERC721 group must have exactly one recipient, got ${recipients.length}`
+      )
+    }
+
+    const recipient = recipients[0]
+    if (!recipient) {
+      throw new Error('ERC721 recipient missing after length check')
+    }
+
+    if (recipient.amount !== 1n) {
+      throw new Error(`ERC721 recipient amount must be 1, got ${recipient.amount}`)
+    }
+
+    const match = selectNFTInput(inputs, {
+      collection: recipient.tokenAddress,
+      tokenId: recipient.tokenSubID,
+    })
+
+    return {
+      inputs: [match],
+      outputs: [
+        {
+          value: 1n,
+          railgunAddress: recipient.railgunAddress,
+        },
+      ],
+    }
   }
 
   /**
@@ -202,11 +271,15 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       const halved = recipient.amount / 2n
       splitIntent.recipients.push({
         tokenAddress: recipient.tokenAddress,
+        tokenType: recipient.tokenType,
+        tokenSubID: recipient.tokenSubID,
         railgunAddress: recipient.railgunAddress,
         amount: halved,
       })
       remainderIntent.recipients.push({
         tokenAddress: recipient.tokenAddress,
+        tokenType: recipient.tokenType,
+        tokenSubID: recipient.tokenSubID,
         railgunAddress: recipient.railgunAddress,
         amount: recipient.amount - halved,
       })
@@ -244,4 +317,4 @@ const calculateSolution = (
   return result
 }
 
-export { calculateSolution, RailgunSolver }
+export { calculateSolution, NFTNotOwnedOrSpentError, RailgunSolver }
