@@ -1,6 +1,5 @@
 /**
- * Identity payload carried on `NFTNotOwnedOrSpentError`. Lets callers report
- * the missing NFT without re-deriving the identity from the spend intent.
+ * Identifies a single NFT by its collection address and token ID.
  */
 type NFTIdentity = {
   collection: string
@@ -8,9 +7,7 @@ type NFTIdentity = {
 }
 
 /**
- * Thrown when an ERC721 spend targets a token the wallet does not have an
- * unspent input for — either never owned, already spent, or selected from
- * the wrong tree.
+ * Thrown when an ERC721 spend has no matching unspent input.
  */
 class NFTNotOwnedOrSpentError extends Error {
   /** Collection address (token contract). */
@@ -42,18 +39,12 @@ type NFTSelectableInput = {
 }
 
 /**
- * Select the single matching unspent input for an ERC721 spend. ERC721 notes
- * always have `value: 1n`, so selection collapses to "find the one note whose
- * identity matches, or fail." Throws `NFTNotOwnedOrSpentError` when no input
- * matches the requested `(collection, tokenId)` pair.
- *
- * Callers must pre-filter `inputs` to the relevant `tokenType` (or guarantee
- * none of the inputs collide on `(tokenAddress, tokenSubID)` across types) —
- * this helper assumes every input in `inputs` is an ERC721 candidate.
- * @param inputs - Candidate ERC721 inputs (already nullifier-filtered to unspent).
- * @param identity - Target NFT identity to select.
- * @returns The single matching input.
- * @throws {NFTNotOwnedOrSpentError} When no input matches the identity.
+ * Find the unspent input matching an NFT identity. Callers must pre-filter
+ * `inputs` to ERC721 candidates.
+ * @param inputs - Candidate inputs.
+ * @param identity - Target NFT identity.
+ * @returns The matching input.
+ * @throws {NFTNotOwnedOrSpentError} When no input matches.
  */
 function selectNFTInput<T extends NFTSelectableInput> (
   inputs: T[],

@@ -6,7 +6,7 @@ import { NFTNotOwnedOrSpentError, SpendingSolution, TokenType, getSpendingSoluti
 
 const ERC20_TOKEN_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const ERC20_TOKEN_SUB_ID = `0x${'00'.repeat(32)}`
-const NFT_COLLECTION = '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D'
+const NFT_COLLECTION = '0x858Df9F84C73E01c55A2DFB95825401242a65D64'
 
 /**
  * Build an ERC20-identity ERC20 spend intent with the given overrides.

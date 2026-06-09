@@ -24,9 +24,7 @@ class GreedySolver extends BaseSolver<
   readonly name = SolverKind.Greedy
 
   /**
-   * Solve spending solution. Dispatches on `tokenType`: ERC20 uses the
-   * existing sum-to-target path; ERC721 takes the short-circuit single-input
-   * lookup. Other token types throw an unsupported-type error.
+   * Solve a single-token spending solution.
    * @param params - Solve parameters
    * @returns Solution result
    */
@@ -61,11 +59,10 @@ class GreedySolver extends BaseSolver<
   }
 
   /**
-   * ERC20 sum-to-target path. Picks inputs across trees and emits a change
-   * output when `value_in - value_out > 0`.
+   * Sum-to-target selection for ERC20.
    * @param solution - Spending solution input.
-   * @param identityFiltered - Inputs already filtered to the target token identity.
-   * @returns Output solution or undefined when no tree can cover the amount.
+   * @param identityFiltered - Inputs filtered to the target token identity.
+   * @returns Output solution, or `undefined` if no tree covers the amount.
    */
   private solveERC20 (
     solution: SpendingSolutionInput,
@@ -134,11 +131,10 @@ class GreedySolver extends BaseSolver<
   }
 
   /**
-   * ERC721 short-circuit path. Picks the single unspent input matching the
-   * target identity (`amount` must be 1) and emits no change.
-   * @param solution - Spending solution input. `amount` must equal 1n.
-   * @param identityFiltered - Inputs already filtered to the target token identity.
-   * @returns Output solution carrying exactly one input and one output.
+   * Single-input selection for ERC721. `amount` must be `1n`.
+   * @param solution - Spending solution input.
+   * @param identityFiltered - Inputs filtered to the target token identity.
+   * @returns Output solution with one input and one output.
    * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
    */
   private solveERC721 (

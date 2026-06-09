@@ -6,7 +6,7 @@ import type { SpendInput, SpendIntent } from '../src/spend'
 import { NFTNotOwnedOrSpentError, calculateSolution } from '../src/spend/solution'
 
 const ERC20_SUB_ID = `0x${'00'.repeat(32)}`
-const NFT_COLLECTION = '0xBC4CA0EdA7647A8aB7C2061c2E118A18a936f13D'
+const NFT_COLLECTION = '0x858Df9F84C73E01c55A2DFB95825401242a65D64'
 
 /**
  * Generate random token address.

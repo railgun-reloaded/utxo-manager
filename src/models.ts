@@ -1,6 +1,5 @@
 /**
- * Token-class enum. Numeric values match the on-chain RAILGUN encoding and
- * are wire-compatible with the wallet-node enum of the same name.
+ * Token-class enum.
  */
 enum TokenType {
   ERC20 = 0,
@@ -55,15 +54,12 @@ type SpendingSolutionInput = {
 }
 
 /**
- * Build the composite identity key used to group inputs and recipients by
- * complete token identity. Two entries collapse only when their `tokenAddress`,
- * `tokenType`, and `tokenSubID` all match — for ERC721 this keeps every
- * `(collection, tokenId)` distinct.
- * @param identity - Object carrying the token-identity triple.
+ * Composite identity key for an input or recipient.
+ * @param identity - Carrier of the token-identity triple.
  * @param identity.tokenAddress - Token contract address.
  * @param identity.tokenType - Token-class enum.
  * @param identity.tokenSubID - 0x-prefixed lowercase hex sub-identifier.
- * @returns Composite identity key.
+ * @returns `"${tokenAddress}:${tokenType}:${tokenSubID}"`.
  */
 function tokenIdentityKey (
   identity: { tokenAddress: string; tokenType: TokenType; tokenSubID: string }

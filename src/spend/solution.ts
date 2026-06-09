@@ -25,8 +25,7 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
 
   /**
    * Solve spending intent. Inputs and recipients are grouped by complete
-   * token identity `(tokenAddress, tokenType, tokenSubID)`, so two ERC721
-   * IDs from the same collection produce two independent solutions.
+   * token identity `(tokenAddress, tokenType, tokenSubID)`.
    * @param params - Solve parameters
    * @returns Solution result
    */
@@ -55,9 +54,6 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
       if (!reference) return
 
       if (reference.tokenType === TokenType.ERC721) {
-        // Empty input set for an ERC721 identity means the wallet does not
-        // own this NFT (or it has been spent already). Surface a typed
-        // error rather than silently dropping the recipient.
         const result = this.solveERC721Group(recipients, inputs)
         solutions.push(result)
         return
@@ -80,12 +76,11 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   * ERC20 sum-to-target group solution. Picks inputs across trees and emits
-   * change when `value_in - value_out > 0`.
-   * @param intent - Spending intent (for change address + type).
+   * Sum-to-target selection for an ERC20 recipient group.
+   * @param intent - Spending intent (provides change address and type).
    * @param recipients - Recipients filtered to a single token identity.
    * @param inputs - Inputs filtered to the same token identity.
-   * @returns Best tree solution, or `undefined` when no tree covers the amount.
+   * @returns Best tree solution, or `undefined` if no tree covers the amount.
    */
   private solveERC20Group (
     intent: SpendIntent,
@@ -147,12 +142,9 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   * ERC721 short-circuit group solution. Emits one input and one output per
-   * recipient with no change (since `value_in - value_out` is always 0 for
-   * an ERC721 spend).
+   * Single-input selection for an ERC721 recipient group. `recipients` must
+   * contain exactly one entry with `amount === 1n`.
    * @param recipients - Recipients filtered to a single ERC721 identity.
-   *   Must contain exactly one recipient — an NFT can only be sent to one
-   *   destination.
    * @param inputs - Inputs filtered to the same ERC721 identity.
    * @returns Tree output with one input and one output.
    * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
