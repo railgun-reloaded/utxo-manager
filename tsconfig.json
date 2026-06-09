@@ -1,4 +1,7 @@
 {
   "extends": ["@railgun-reloaded/tsconfig/tsconfig"],
+  "compilerOptions": {
+    "declaration": true
+  },
   "include": ["globals.d.ts", "src/**/*.ts", "test/**/*.ts", "types/**/*.d.ts"]
 }
