@@ -1,8 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
+
 import type { NullifierEvent, UTXO } from '../../src'
-import { NullifierIndexer, fromHex, toHex } from '../../src'
+import { NullifierIndexer } from '../../src'
 
 /**
  * Creates a mock UTXO for testing purposes.
@@ -27,7 +29,7 @@ function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
     nullifier: randomHex(),
     treeNumber: 0n,
     leafIndex: BigInt(Math.floor(Math.random() * 1000)),
-    token: fromHex('0000000000000000000000000000000000000001'),
+    token: hexToBytes('0000000000000000000000000000000000000001'),
     value: BigInt(Math.floor(Math.random() * 10000) + 100),
     blockNumber: 1000n,
     spent: false,
@@ -62,7 +64,7 @@ describe('NullifierIndexer', () => {
   describe('addUTXO / addUTXOs', () => {
     it('adds single UTXO', () => {
       const indexer = new NullifierIndexer()
-      const testCommitment = fromHex('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')
+      const testCommitment = hexToBytes('0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef')
       const utxo = createMockUTXO({ commitment: testCommitment })
 
       indexer.addUTXO(utxo)
@@ -89,7 +91,7 @@ describe('NullifierIndexer', () => {
   describe('processNullifierEvents', () => {
     it('marks UTXOs as spent when scanner provides events', () => {
       const indexer = new NullifierIndexer()
-      const testNullifier = fromHex('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210')
+      const testNullifier = hexToBytes('fedcba9876543210fedcba9876543210fedcba9876543210fedcba9876543210')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       indexer.addUTXO(utxo)
 
@@ -115,9 +117,9 @@ describe('NullifierIndexer', () => {
 
     it('handles batch of events from scanner', () => {
       const indexer = new NullifierIndexer()
-      const nullifier1 = fromHex('1111111111111111111111111111111111111111111111111111111111111111')
-      const nullifier2 = fromHex('2222222222222222222222222222222222222222222222222222222222222222')
-      const nullifier3 = fromHex('3333333333333333333333333333333333333333333333333333333333333333')
+      const nullifier1 = hexToBytes('1111111111111111111111111111111111111111111111111111111111111111')
+      const nullifier2 = hexToBytes('2222222222222222222222222222222222222222222222222222222222222222')
+      const nullifier3 = hexToBytes('3333333333333333333333333333333333333333333333333333333333333333')
       const utxo1 = createMockUTXO({ nullifier: nullifier1 })
       const utxo2 = createMockUTXO({ nullifier: nullifier2 })
       const utxo3 = createMockUTXO({ nullifier: nullifier3 })
@@ -139,8 +141,8 @@ describe('NullifierIndexer', () => {
 
     it('handles events for unknown nullifiers gracefully', () => {
       const indexer = new NullifierIndexer()
-      const knownNullifier = fromHex('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
-      const unknownNullifier = fromHex('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
+      const knownNullifier = hexToBytes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')
+      const unknownNullifier = hexToBytes('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')
       const utxo = createMockUTXO({ nullifier: knownNullifier })
       indexer.addUTXO(utxo)
 
@@ -160,7 +162,7 @@ describe('NullifierIndexer', () => {
   describe('handleReorg', () => {
     it('reverts spent UTXOs after reorg', () => {
       const indexer = new NullifierIndexer()
-      const testNullifier = fromHex('cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc')
+      const testNullifier = hexToBytes('cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       indexer.addUTXO(utxo)
 
@@ -185,8 +187,8 @@ describe('NullifierIndexer', () => {
 
     it('keeps UTXOs spent before reorg point', () => {
       const indexer = new NullifierIndexer()
-      const nullifierEarly = fromHex('dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd')
-      const nullifierLate = fromHex('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
+      const nullifierEarly = hexToBytes('dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd')
+      const nullifierLate = hexToBytes('eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee')
       const utxo1 = createMockUTXO({ nullifier: nullifierEarly })
       const utxo2 = createMockUTXO({ nullifier: nullifierLate })
       indexer.addUTXOs([utxo1, utxo2])
@@ -210,8 +212,8 @@ describe('NullifierIndexer', () => {
   describe('query methods', () => {
     it('getSpendableUTXOs returns only unspent', () => {
       const indexer = new NullifierIndexer()
-      const token1 = fromHex('0000000000000000000000000000000000000001')
-      const spentNullifier = fromHex('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
+      const token1 = hexToBytes('0000000000000000000000000000000000000001')
+      const spentNullifier = hexToBytes('ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff')
       const unspent = createMockUTXO({ token: token1 })
       const spent = createMockUTXO({ token: token1, nullifier: spentNullifier })
       indexer.addUTXOs([unspent, spent])
@@ -227,20 +229,20 @@ describe('NullifierIndexer', () => {
 
     it('getSpendableUTXOs filters by token', () => {
       const indexer = new NullifierIndexer()
-      const token1Bytes = fromHex('0000000000000000000000000000000000000001')
-      const token2Bytes = fromHex('0000000000000000000000000000000000000002')
+      const token1Bytes = hexToBytes('0000000000000000000000000000000000000001')
+      const token2Bytes = hexToBytes('0000000000000000000000000000000000000002')
       const token1 = createMockUTXO({ token: token1Bytes })
       const token2 = createMockUTXO({ token: token2Bytes })
       indexer.addUTXOs([token1, token2])
 
       const spendable = indexer.getSpendableUTXOs(token1Bytes)
       assert.equal(spendable.length, 1)
-      assert.equal(toHex(spendable[0]?.token || new Uint8Array()), toHex(token1Bytes))
+      assert.equal(bytesToHex(spendable[0]?.token || new Uint8Array()), bytesToHex(token1Bytes))
     })
 
     it('getAllUTXOs returns all UTXOs', () => {
       const indexer = new NullifierIndexer()
-      const spentNullifier = fromHex('1010101010101010101010101010101010101010101010101010101010101010')
+      const spentNullifier = hexToBytes('1010101010101010101010101010101010101010101010101010101010101010')
       const utxo1 = createMockUTXO()
       const utxo2 = createMockUTXO({ nullifier: spentNullifier })
       indexer.addUTXOs([utxo1, utxo2])
@@ -255,7 +257,7 @@ describe('NullifierIndexer', () => {
 
     it('isSpent checks nullifier index', () => {
       const indexer = new NullifierIndexer()
-      const testNullifier = fromHex('2020202020202020202020202020202020202020202020202020202020202020')
+      const testNullifier = hexToBytes('2020202020202020202020202020202020202020202020202020202020202020')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       indexer.addUTXO(utxo)
 
@@ -270,14 +272,14 @@ describe('NullifierIndexer', () => {
 
     it('getUTXO retrieves by commitment', () => {
       const indexer = new NullifierIndexer()
-      const testCommitment = fromHex('3030303030303030303030303030303030303030303030303030303030303030')
+      const testCommitment = hexToBytes('3030303030303030303030303030303030303030303030303030303030303030')
       const utxo = createMockUTXO({ commitment: testCommitment })
       indexer.addUTXO(utxo)
 
       const retrieved = indexer.getUTXO(testCommitment)
       assert.deepEqual(retrieved, utxo)
 
-      const notFound = indexer.getUTXO(fromHex('unknown123'))
+      const notFound = indexer.getUTXO(hexToBytes('deadbeef00'))
       assert.equal(notFound, undefined)
     })
   })
@@ -323,7 +325,7 @@ describe('NullifierIndexer', () => {
   describe('serialization', () => {
     it('serializes and deserializes state', () => {
       const indexer1 = new NullifierIndexer()
-      const testCommitment = fromHex('4040404040404040404040404040404040404040404040404040404040404040')
+      const testCommitment = hexToBytes('4040404040404040404040404040404040404040404040404040404040404040')
       const utxo = createMockUTXO({ commitment: testCommitment })
       indexer1.addUTXO(utxo)
       indexer1.processNullifierEvents([
@@ -346,11 +348,11 @@ describe('NullifierIndexer', () => {
     it('round-trip serialization preserves state', () => {
       const indexer1 = new NullifierIndexer()
 
-      const token1Bytes = fromHex('0000000000000000000000000000000000000001')
-      const token2Bytes = fromHex('0000000000000000000000000000000000000002')
-      const n1 = fromHex('5050505050505050505050505050505050505050505050505050505050505050')
-      const n2 = fromHex('6060606060606060606060606060606060606060606060606060606060606060')
-      const n3 = fromHex('7070707070707070707070707070707070707070707070707070707070707070')
+      const token1Bytes = hexToBytes('0000000000000000000000000000000000000001')
+      const token2Bytes = hexToBytes('0000000000000000000000000000000000000002')
+      const n1 = hexToBytes('5050505050505050505050505050505050505050505050505050505050505050')
+      const n2 = hexToBytes('6060606060606060606060606060606060606060606060606060606060606060')
+      const n3 = hexToBytes('7070707070707070707070707070707070707070707070707070707070707070')
 
       // Add multiple UTXOs with various states
       const utxos = [
@@ -385,11 +387,11 @@ describe('NullifierIndexer', () => {
       // 1. Scanner initializes indexer (or restores from db)
       const indexer = new NullifierIndexer()
 
-      const token1Bytes = fromHex('0000000000000000000000000000000000000001')
-      const token2Bytes = fromHex('0000000000000000000000000000000000000002')
-      const nullifier1 = fromHex('8080808080808080808080808080808080808080808080808080808080808080')
-      const nullifier2 = fromHex('9090909090909090909090909090909090909090909090909090909090909090')
-      const nullifier3 = fromHex('a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0')
+      const token1Bytes = hexToBytes('0000000000000000000000000000000000000001')
+      const token2Bytes = hexToBytes('0000000000000000000000000000000000000002')
+      const nullifier1 = hexToBytes('8080808080808080808080808080808080808080808080808080808080808080')
+      const nullifier2 = hexToBytes('9090909090909090909090909090909090909090909090909090909090909090')
+      const nullifier3 = hexToBytes('a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0a0')
 
       // 2. Scanner discovers new commitments (UTXOs created)
       const newUTXOs = [

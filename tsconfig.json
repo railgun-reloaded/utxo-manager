@@ -3,5 +3,5 @@
   "compilerOptions": {
     "declaration": true
   },
-  "include": ["globals.d.ts", "src/**/*.ts", "test/**/*.ts", "types/**/*.d.ts"]
+  "include": ["src/**/*.ts", "test/**/*.ts"]
 }

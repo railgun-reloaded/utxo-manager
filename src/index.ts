@@ -1,20 +1,21 @@
-import type { UTXOSolver } from './interfaces'
-import { GreedySolver } from './solver'
-import { RailgunSolver } from './spend/solution'
+import { GreedySolver } from './solvers/greedy'
+import { RailgunSolver } from './solvers/railgun'
+import type { UTXOSolver } from './solvers/types'
 
-export * from './solver'
+export * from './solvers/greedy'
+export * from './solvers/railgun'
+export type * from './solvers/greedy-models'
+export type * from './solvers/railgun-models'
 export * from './state'
 export * from './state/events'
 export * from './state/indexer'
-export * from './models'
-export * from './spend'
 
-export type { UTXOSolver, SolveParams, SolveResult, GreedySolveParams, RailgunSolveParams } from './interfaces'
-export { SolverKind } from './interfaces'
-export { BaseSolver } from './base-solver'
-export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './solutions/nullifiers'
-export { selectInputsForTarget, findExactMatch } from './solutions/selection'
-export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './solutions/utxos'
+export type { GreedySolveParams, RailgunSolveParams, SolveParams, SolveResult, TokenIdentity, UTXOSolver } from './solvers/types'
+export { SolverKind, SpendingSolution, TokenType } from './solvers/types'
+export { BaseSolver } from './solvers/base-solver'
+export { VALID_INPUT_COUNTS, VALID_OUTPUT_COUNTS } from './primitives/nullifiers'
+export { selectInputsForTarget, findExactMatch } from './primitives/selection'
+export { sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from './primitives/utxos'
 
 /**
  * Create a solver instance by type.

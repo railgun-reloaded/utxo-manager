@@ -1,19 +1,19 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 
+import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
+
 import {
   addUTXO,
   addUTXOs,
   createEmptyState,
   deserializeState,
-  fromHex,
   getSpendableUTXOs,
   getUTXO,
   isSpent,
   markSpent,
   serializeState,
-  setSyncedBlock,
-  toHex
+  setSyncedBlock
 } from '../../src/state'
 import type { UTXO } from '../../src/state/models'
 
@@ -40,7 +40,7 @@ function createMockUTXO (overrides: Partial<UTXO> = {}): UTXO {
     nullifier: randomHex(),
     treeNumber: 0n,
     leafIndex: BigInt(Math.floor(Math.random() * 1000)),
-    token: fromHex('0000000000000000000000000000000000000001'), // default token
+    token: hexToBytes('0000000000000000000000000000000000000001'), // default token
     value: BigInt(Math.floor(Math.random() * 10000) + 100),
     blockNumber: 1000n,
     spent: false,
@@ -89,7 +89,7 @@ describe('UTXO State Management', () => {
 
   describe('markSpent', () => {
     it('marks a UTXO as spent', () => {
-      const testNullifier = fromHex('0123456789abcdef')
+      const testNullifier = hexToBytes('0123456789abcdef')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
@@ -98,11 +98,11 @@ describe('UTXO State Management', () => {
 
       assert.equal(newState.utxos[0]?.spent, true)
       assert.equal(newState.utxos[0]?.spentTxid, '0xtxid123')
-      assert.equal(newState.nullifiers.has(toHex(testNullifier)), true)
+      assert.equal(newState.nullifiers.has(bytesToHex(testNullifier)), true)
     })
 
     it('records blockNumber when provided', () => {
-      const testNullifier = fromHex('0123456789abcdef')
+      const testNullifier = hexToBytes('0123456789abcdef')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
@@ -113,7 +113,7 @@ describe('UTXO State Management', () => {
     })
 
     it('does not mark already-spent UTXO again', () => {
-      const testNullifier = fromHex('0123456789abcdef')
+      const testNullifier = hexToBytes('0123456789abcdef')
       const utxo = createMockUTXO({ nullifier: testNullifier, spent: true, spentTxid: '0xold' })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
@@ -126,7 +126,7 @@ describe('UTXO State Management', () => {
 
   describe('getUTXO', () => {
     it('retrieves UTXO by commitment', () => {
-      const testCommitment = fromHex('fedcba9876543210')
+      const testCommitment = hexToBytes('fedcba9876543210')
       const utxo = createMockUTXO({ commitment: testCommitment })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
@@ -137,14 +137,14 @@ describe('UTXO State Management', () => {
 
     it('returns undefined for unknown commitment', () => {
       const state = createEmptyState()
-      const found = getUTXO(state, fromHex('unknown123'))
+      const found = getUTXO(state, hexToBytes('deadbeef00'))
       assert.equal(found, undefined)
     })
   })
 
   describe('getSpendableUTXOs', () => {
     it('returns only unspent UTXOs', () => {
-      const token1 = fromHex('0000000000000000000000000000000000000001')
+      const token1 = hexToBytes('0000000000000000000000000000000000000001')
       const unspent1 = createMockUTXO({ token: token1 })
       const spent = createMockUTXO({ token: token1, spent: true })
       const unspent2 = createMockUTXO({ token: token1 })
@@ -158,8 +158,8 @@ describe('UTXO State Management', () => {
     })
 
     it('filters by token when provided', () => {
-      const token1Bytes = fromHex('0000000000000000000000000000000000000001')
-      const token2Bytes = fromHex('0000000000000000000000000000000000000002')
+      const token1Bytes = hexToBytes('0000000000000000000000000000000000000001')
+      const token2Bytes = hexToBytes('0000000000000000000000000000000000000002')
       const token1 = createMockUTXO({ token: token1Bytes })
       const token2 = createMockUTXO({ token: token2Bytes })
 
@@ -168,13 +168,13 @@ describe('UTXO State Management', () => {
 
       const spendable = getSpendableUTXOs(state, token1Bytes)
       assert.equal(spendable.length, 1)
-      assert.equal(toHex(spendable[0]?.token || new Uint8Array()), toHex(token1Bytes))
+      assert.equal(bytesToHex(spendable[0]?.token || new Uint8Array()), bytesToHex(token1Bytes))
     })
   })
 
   describe('isSpent', () => {
     it('returns true for spent nullifier', () => {
-      const testNullifier = fromHex('0123456789abcdef')
+      const testNullifier = hexToBytes('0123456789abcdef')
       const utxo = createMockUTXO({ nullifier: testNullifier })
       let state = createEmptyState()
       state = addUTXO(state, utxo)
@@ -185,14 +185,14 @@ describe('UTXO State Management', () => {
 
     it('returns false for unspent nullifier', () => {
       const state = createEmptyState()
-      assert.equal(isSpent(state, fromHex('unknown123')), false)
+      assert.equal(isSpent(state, hexToBytes('deadbeef00')), false)
     })
   })
 
   describe('serialization', () => {
     it('serializes and deserializes state correctly', () => {
-      const testCommitment = fromHex('fedcba9876543210')
-      const testNullifier = fromHex('0123456789abcdef')
+      const testCommitment = hexToBytes('fedcba9876543210')
+      const testNullifier = hexToBytes('0123456789abcdef')
       const utxo = createMockUTXO({
         commitment: testCommitment,
         nullifier: testNullifier,
@@ -206,7 +206,7 @@ describe('UTXO State Management', () => {
       const deserialized = deserializeState(serialized)
 
       assert.equal(deserialized.utxos.length, 1)
-      assert.equal(toHex(deserialized.utxos[0]?.commitment || new Uint8Array()), toHex(testCommitment))
+      assert.equal(bytesToHex(deserialized.utxos[0]?.commitment || new Uint8Array()), bytesToHex(testCommitment))
       assert.equal(deserialized.utxos[0]?.spentBlockNumber, 2000n)
       assert.equal(deserialized.syncedBlock, 1500n)
     })

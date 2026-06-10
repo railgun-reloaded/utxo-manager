@@ -1,6 +1,7 @@
+import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
+
 import type { SerializedUTXO, SerializedUTXOState, UTXO, UTXOState } from './models'
 import { applyNullifierUpdates } from './nullifiers'
-import { fromHex, toHex } from './utils'
 
 /**
  * Creates an empty UTXO state.
@@ -51,7 +52,7 @@ function addUTXOs (state: UTXOState, utxos: UTXO[]): UTXOState {
  * @param blockNumber - Optional block number where spent (for reorg handling)
  * @returns New state with UTXO marked as spent
  * @example
- * const nullifier = fromHex('abc...')
+ * const nullifier = hexToBytes('abc...')
  * const newState = markSpent(state, nullifier, '0x123...', 1000n)
  */
 function markSpent (
@@ -73,7 +74,7 @@ function markSpent (
  * @param nullifiers - Array of nullifier byte arrays
  * @returns New state with matching UTXOs marked as spent
  * @example
- * const nullifiers = [fromHex('abc...'), fromHex('def...')]
+ * const nullifiers = [hexToBytes('abc...'), hexToBytes('def...')]
  * const newState = applyNullifiers(state, nullifiers)
  */
 function applyNullifiers (state: UTXOState, nullifiers: Uint8Array[]): UTXOState {
@@ -102,12 +103,12 @@ function setSyncedBlock (state: UTXOState, blockNumber: bigint): UTXOState {
  * @param commitment - Commitment to search for
  * @returns UTXO if found, undefined otherwise
  * @example
- * const commitment = fromHex('abc...')
+ * const commitment = hexToBytes('abc...')
  * const utxo = getUTXO(state, commitment)
  */
 function getUTXO (state: UTXOState, commitment: Uint8Array): UTXO | undefined {
-  const commitmentHex = toHex(commitment)
-  return state.utxos.find(utxo => toHex(utxo.commitment) === commitmentHex)
+  const commitmentHex = bytesToHex(commitment)
+  return state.utxos.find(utxo => bytesToHex(utxo.commitment) === commitmentHex)
 }
 
 /**
@@ -116,15 +117,15 @@ function getUTXO (state: UTXOState, commitment: Uint8Array): UTXO | undefined {
  * @param token - Optional token address (as byte array) to filter by
  * @returns Array of spendable UTXOs
  * @example
- * const token = fromHex('token...')
+ * const token = hexToBytes('token...')
  * const spendable = getSpendableUTXOs(state, token)
  */
 function getSpendableUTXOs (state: UTXOState, token?: Uint8Array): UTXO[] {
   let utxos = state.utxos.filter(utxo => !utxo.spent)
 
   if (token) {
-    const tokenHex = toHex(token)
-    utxos = utxos.filter(utxo => toHex(utxo.token) === tokenHex)
+    const tokenHex = bytesToHex(token)
+    utxos = utxos.filter(utxo => bytesToHex(utxo.token) === tokenHex)
   }
 
   return utxos
@@ -136,11 +137,11 @@ function getSpendableUTXOs (state: UTXOState, token?: Uint8Array): UTXO[] {
  * @param nullifier - Nullifier to check
  * @returns True if spent, false otherwise
  * @example
- * const nullifier = fromHex('abc...')
+ * const nullifier = hexToBytes('abc...')
  * const spent = isSpent(state, nullifier)
  */
 function isSpent (state: UTXOState, nullifier: Uint8Array): boolean {
-  return state.nullifiers.has(toHex(nullifier))
+  return state.nullifiers.has(bytesToHex(nullifier))
 }
 
 /**
@@ -150,11 +151,11 @@ function isSpent (state: UTXOState, nullifier: Uint8Array): boolean {
  */
 function serializeUTXO (utxo: UTXO): SerializedUTXO {
   const serialized: SerializedUTXO = {
-    commitment: toHex(utxo.commitment),
-    nullifier: toHex(utxo.nullifier),
+    commitment: bytesToHex(utxo.commitment),
+    nullifier: bytesToHex(utxo.nullifier),
     treeNumber: utxo.treeNumber.toString(),
     leafIndex: utxo.leafIndex.toString(),
-    token: toHex(utxo.token),
+    token: bytesToHex(utxo.token),
     value: utxo.value.toString(),
     blockNumber: utxo.blockNumber.toString(),
     spent: utxo.spent
@@ -178,11 +179,11 @@ function serializeUTXO (utxo: UTXO): SerializedUTXO {
  */
 function deserializeUTXO (serialized: SerializedUTXO): UTXO {
   const utxo: UTXO = {
-    commitment: fromHex(serialized.commitment),
-    nullifier: fromHex(serialized.nullifier),
+    commitment: hexToBytes(serialized.commitment),
+    nullifier: hexToBytes(serialized.nullifier),
     treeNumber: BigInt(serialized.treeNumber),
     leafIndex: BigInt(serialized.leafIndex),
-    token: fromHex(serialized.token),
+    token: hexToBytes(serialized.token),
     value: BigInt(serialized.value),
     blockNumber: BigInt(serialized.blockNumber),
     spent: serialized.spent
@@ -247,4 +248,3 @@ export {
   setSyncedBlock
 }
 export type * from './models'
-export * from './utils'

@@ -1,5 +1,6 @@
-import type { SolveParams, SolveResult, UTXOSolver } from './interfaces'
-import { groupInputsByTree } from './solutions/utxos'
+import { groupInputsByTree } from '../primitives/utxos'
+
+import type { SolveParams, SolveResult, UTXOSolver } from './types'
 
 type ValueTreeInput = {
   value: bigint

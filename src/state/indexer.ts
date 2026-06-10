@@ -74,12 +74,12 @@ export class NullifierIndexer {
    * Adds a single UTXO to the indexer.
    * @param utxo - UTXO to add
    * @example
-   * import { fromHex } from './utils'
+   * import { hexToBytes } from '@railgun-reloaded/bytes'
    * const utxo = {
-   *   commitment: fromHex('abc...'),
-   *   nullifier: fromHex('def...'),
+   *   commitment: hexToBytes('abc...'),
+   *   nullifier: hexToBytes('def...'),
    *   value: 1000n,
-   *   token: fromHex('token...'),
+   *   token: hexToBytes('token...'),
    *   // ... other fields
    * }
    * indexer.addUTXO(utxo)
@@ -122,7 +122,7 @@ export class NullifierIndexer {
    * @param nullifier - Nullifier to check
    * @returns True if the nullifier is in the index (spent), false otherwise
    * @example
-   * const nullifier = fromHex('nullifier...')
+   * const nullifier = hexToBytes('nullifier...')
    * if (indexer.isSpent(nullifier)) {
    *   console.log('This UTXO has already been spent')
    * }
@@ -136,7 +136,7 @@ export class NullifierIndexer {
    * @param commitment - Commitment to search for
    * @returns UTXO if found, undefined otherwise
    * @example
-   * const commitment = fromHex('commitment...')
+   * const commitment = hexToBytes('commitment...')
    * const utxo = indexer.getUTXO(commitment)
    * if (utxo && !utxo.spent) {
    *   console.log('UTXO is spendable')
@@ -155,7 +155,7 @@ export class NullifierIndexer {
    * const allSpendable = indexer.getSpendableUTXOs()
    *
    * // Get spendable UTXOs for a specific token
-   * const token = fromHex('token...')
+   * const token = hexToBytes('token...')
    * const tokenUTXOs = indexer.getSpendableUTXOs(token)
    *
    * // Feed to spending solver

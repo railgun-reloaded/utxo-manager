@@ -1,6 +1,7 @@
+import { bytesToHex } from '@railgun-reloaded/bytes'
+
 import type { UTXOState } from './models'
 import { applyNullifierUpdates } from './nullifiers'
-import { toHex } from './utils'
 
 /**
  * Represents a nullifier event from the blockchain.
@@ -55,7 +56,7 @@ function handleReorg (
   const newUtxos = state.utxos.map(utxo => {
     if (utxo.spent && utxo.spentBlockNumber && utxo.spentBlockNumber > reorgBlockNumber) {
       // Mark this nullifier for removal from the set
-      nullifiersToRemove.add(toHex(utxo.nullifier))
+      nullifiersToRemove.add(bytesToHex(utxo.nullifier))
 
       // Revert the UTXO to unspent (omit optional properties instead of setting to undefined)
       const { spentTxid, spentBlockNumber, ...rest } = utxo

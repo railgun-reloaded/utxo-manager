@@ -1,18 +1,26 @@
-import { BaseSolver } from '../base-solver'
-import type { SolveParams, SolveResult } from '../interfaces'
-import { SolverKind } from '../interfaces'
-import { SpendingSolution, TokenType, tokenIdentityKey } from '../models'
-import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
-import { selectInputsForTarget } from '../solutions/selection'
-import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
+import { MAX_INPUTS, isValidInputOutputCount } from '../primitives/nullifiers'
+import { selectInputsForTarget } from '../primitives/selection'
+import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../primitives/utxos'
 
+import { BaseSolver } from './base-solver'
 import type {
   SpendInput,
   SpendIntent,
   SpendRecipient,
   SpendTransaction,
   SpendTreeOutput,
-} from './models'
+} from './railgun-models'
+import type { SolveParams, SolveResult, TokenIdentity } from './types'
+import { SolverKind, SpendingSolution, TokenType } from './types'
+
+/**
+ * Composite identity key for grouping inputs and recipients by token.
+ * @param identity - Token identity triple.
+ * @returns `"${tokenAddress}:${tokenType}:${tokenSubID}"`.
+ */
+function tokenIdentityKey (identity: TokenIdentity): string {
+  return `${identity.tokenAddress}:${identity.tokenType}:${identity.tokenSubID}`
+}
 
 /**
  * Recipients and inputs that share one token identity.

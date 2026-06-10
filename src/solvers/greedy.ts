@@ -1,15 +1,15 @@
-import { BaseSolver } from './base-solver'
-import type { SolveParams, SolveResult } from './interfaces'
-import { SolverKind } from './interfaces'
-import type { Input, OutputSolution, SpendingSolutionInput } from './models'
-import { SpendingSolution, TokenType } from './models'
-import { MAX_INPUTS, isValidInputOutputCount } from './solutions/nullifiers'
-import { selectInputsForTarget } from './solutions/selection'
+import { MAX_INPUTS, isValidInputOutputCount } from '../primitives/nullifiers'
+import { selectInputsForTarget } from '../primitives/selection'
 import {
   filterZeroUTXOs,
   sortUTXOsByAscendingValue,
   sortUTXOsByDescendingValue,
-} from './solutions/utxos'
+} from '../primitives/utxos'
+
+import { BaseSolver } from './base-solver'
+import type { Input, OutputSolution, SpendingSolutionInput } from './greedy-models'
+import type { SolveParams, SolveResult } from './types'
+import { SolverKind, SpendingSolution, TokenType } from './types'
 
 /**
  * Greedy single-token solver.
@@ -188,5 +188,5 @@ const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | 
     | undefined
 }
 
-export { getSpendingSolution, GreedySolver, SpendingSolution }
+export { getSpendingSolution, GreedySolver }
 export type { Input, SpendingSolutionInput }

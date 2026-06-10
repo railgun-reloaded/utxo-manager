@@ -1,5 +1,6 @@
+import { bytesToHex } from '@railgun-reloaded/bytes'
+
 import type { UTXO, UTXOState } from './models'
-import { toHex } from './utils'
 
 export interface NullifierUpdate {
   nullifier: Uint8Array
@@ -21,7 +22,7 @@ export function applyNullifierUpdates (
   const updateMap = new Map<string, NullifierUpdate>()
 
   for (const update of updates) {
-    const nullifierHex = toHex(update.nullifier)
+    const nullifierHex = bytesToHex(update.nullifier)
     newNullifiers.add(nullifierHex)
     updateMap.set(nullifierHex, update)
   }
@@ -31,7 +32,7 @@ export function applyNullifierUpdates (
   }
 
   const newUtxos = state.utxos.map(utxo => {
-    const nullifierHex = toHex(utxo.nullifier)
+    const nullifierHex = bytesToHex(utxo.nullifier)
     const update = updateMap.get(nullifierHex)
     if (update && !utxo.spent) {
       const updated: UTXO = {
