@@ -1,15 +1,51 @@
-import { MAX_INPUTS, isValidInputOutputCount } from '../primitives/nullifiers'
-import { selectInputsForTarget } from '../primitives/selection'
+import { MAX_INPUTS, isValidInputOutputCount } from '../nullifiers'
+import { selectInputsForTarget } from '../selection'
 import {
   filterZeroUTXOs,
   sortUTXOsByAscendingValue,
   sortUTXOsByDescendingValue,
-} from '../primitives/utxos'
+} from '../utxos'
 
-import { BaseSolver } from './base-solver'
-import type { Input, OutputSolution, SpendingSolutionInput } from './greedy-models'
-import type { SolveParams, SolveResult } from './types'
+import { BaseSolver } from './base'
+import type { SolveParams, SolveResult, TokenIdentity } from './types'
 import { SolverKind, SpendingSolution, TokenType } from './types'
+
+/**
+ * UTXO input to the greedy solver.
+ */
+type Input = TokenIdentity & {
+  commitmentIndex: bigint
+  treeNumber: bigint
+  value: bigint
+}
+
+/**
+ * Output note emitted by the greedy solver — token identity plus the amount
+ * and the receiving address.
+ */
+type OutputNote = TokenIdentity & {
+  value: bigint
+  recipientAddress: string
+}
+
+/**
+ * Greedy solver result: selected inputs and the outputs they produce.
+ */
+type OutputSolution = {
+  inputs: Input[]
+  outputs: OutputNote[]
+}
+
+/**
+ * Greedy solver input contract.
+ */
+type SpendingSolutionInput = TokenIdentity & {
+  changeAddress: string
+  recipientAddress: string
+  inputs: Input[]
+  amount: bigint
+  type?: SpendingSolution
+}
 
 /**
  * Greedy single-token solver.
@@ -39,11 +75,13 @@ class GreedySolver extends BaseSolver<
 
     if (solution.amount <= 0n) return undefined
 
+    const targetAddress = solution.tokenAddress.toLowerCase()
+    const targetSubID = solution.tokenSubID.toLowerCase()
     const identityFiltered = solution.inputs.filter(
       (input) =>
-        input.tokenAddress === solution.tokenAddress &&
+        input.tokenAddress.toLowerCase() === targetAddress &&
         input.tokenType === solution.tokenType &&
-        input.tokenSubID === solution.tokenSubID
+        input.tokenSubID.toLowerCase() === targetSubID
     )
 
     if (solution.tokenType === TokenType.ERC20) {
@@ -189,4 +227,4 @@ const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | 
 }
 
 export { getSpendingSolution, GreedySolver }
-export type { Input, SpendingSolutionInput }
+export type { Input, OutputNote, OutputSolution, SpendingSolutionInput }

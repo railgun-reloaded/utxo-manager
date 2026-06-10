@@ -1,5 +1,5 @@
-import type { OutputSolution, SpendingSolutionInput } from './greedy-models'
-import type { SpendInput, SpendIntent, SpendTreeOutput } from './railgun-models'
+import type { OutputSolution, SpendingSolutionInput } from './greedy'
+import type { SpendInput, SpendIntent, SpendTreeOutput } from './railgun'
 
 /**
  * Token-class enum.
@@ -20,14 +20,6 @@ type TokenIdentity = {
 }
 
 /**
- * Solver type identifiers.
- */
-enum SolverKind {
-  Greedy = 'greedy',
-  Railgun = 'railgun'
-}
-
-/**
  * Solving strategy: `Simple` picks smallest inputs first (preserves larger
  * notes for future spends); `Consolidation` picks largest first to reduce
  * note count.
@@ -38,7 +30,15 @@ enum SpendingSolution {
 }
 
 /**
- * Parameters for solving a single-token spend.
+ * Solver type identifiers.
+ */
+enum SolverKind {
+  Greedy = 'greedy',
+  Railgun = 'railgun'
+}
+
+/**
+ * Parameters for solving a single-token greedy spend.
  */
 type GreedySolveParams = {
   kind: SolverKind.Greedy
@@ -46,7 +46,7 @@ type GreedySolveParams = {
 }
 
 /**
- * Parameters for solving a railgun spend intent.
+ * Parameters for solving a multi-recipient railgun spend.
  */
 type RailgunSolveParams = {
   kind: SolverKind.Railgun

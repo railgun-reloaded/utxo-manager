@@ -1,25 +1,65 @@
-import { MAX_INPUTS, isValidInputOutputCount } from '../primitives/nullifiers'
-import { selectInputsForTarget } from '../primitives/selection'
-import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../primitives/utxos'
+import { MAX_INPUTS, isValidInputOutputCount } from '../nullifiers'
+import { selectInputsForTarget } from '../selection'
+import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../utxos'
 
-import { BaseSolver } from './base-solver'
-import type {
-  SpendInput,
-  SpendIntent,
-  SpendRecipient,
-  SpendTransaction,
-  SpendTreeOutput,
-} from './railgun-models'
+import { BaseSolver } from './base'
 import type { SolveParams, SolveResult, TokenIdentity } from './types'
 import { SolverKind, SpendingSolution, TokenType } from './types'
 
 /**
+ * A recipient of a railgun spend: token identity, destination address, and
+ * the amount to send.
+ */
+type SpendRecipient = TokenIdentity & {
+  railgunAddress: string
+  amount: bigint
+}
+
+/**
+ * Multi-recipient spend description. Each recipient is paid from the inputs
+ * matching its token identity.
+ */
+type SpendIntent = {
+  changeAddress: string
+  recipients: SpendRecipient[]
+  type: SpendingSolution
+}
+
+/**
+ * UTXO input to the railgun solver.
+ */
+type SpendInput = TokenIdentity & {
+  treeNumber: bigint
+  leafIndex: bigint
+  value: bigint
+}
+
+/**
+ * Output emitted by the railgun solver — amount + destination address.
+ * Token identity is implied by the enclosing `SpendTreeOutput`'s inputs.
+ */
+type SpendTransaction = {
+  value: bigint
+  railgunAddress: string
+}
+
+/**
+ * Per-tree solution: selected inputs and the outputs they produce.
+ */
+type SpendTreeOutput = {
+  inputs: SpendInput[]
+  outputs: SpendTransaction[]
+}
+
+/**
  * Composite identity key for grouping inputs and recipients by token.
+ * `tokenAddress` and `tokenSubID` are lowercased so identities that differ
+ * only by casing collapse into one group.
  * @param identity - Token identity triple.
- * @returns `"${tokenAddress}:${tokenType}:${tokenSubID}"`.
+ * @returns Normalized composite key.
  */
 function tokenIdentityKey (identity: TokenIdentity): string {
-  return `${identity.tokenAddress}:${identity.tokenType}:${identity.tokenSubID}`
+  return `${identity.tokenAddress.toLowerCase()}:${identity.tokenType}:${identity.tokenSubID.toLowerCase()}`
 }
 
 /**
@@ -275,3 +315,4 @@ const calculateSolution = (
 }
 
 export { calculateSolution, RailgunSolver }
+export type { SpendInput, SpendIntent, SpendRecipient, SpendTransaction, SpendTreeOutput }

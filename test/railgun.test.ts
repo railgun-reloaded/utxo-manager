@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import type { SpendInput, SpendIntent } from '../src'
 import { SpendingSolution, TokenType } from '../src'
-import { calculateSolution } from '../src/solvers/railgun'
+import { calculateSolution } from '../src/solvers/strategies/railgun'
 
 const ERC20_SUB_ID = `0x${'00'.repeat(32)}`
 const NFT_COLLECTION = '0x858Df9F84C73E01c55A2DFB95825401242a65D64'
@@ -218,4 +218,38 @@ test('RailgunSolver ERC721 unowned: solution is filtered out and result excludes
       return true
     }
   )
+})
+
+test('RailgunSolver: recipient and inputs with different address casing still group together', () => {
+  const lowerAddr = '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48'
+  const upperAddr = '0xA0B86991C6218B36C1D19D4A2E9EB0CE3606EB48'
+
+  const utxos: SpendInput[] = [
+    {
+      tokenAddress: lowerAddr,
+      tokenType: TokenType.ERC20,
+      tokenSubID: ERC20_SUB_ID,
+      leafIndex: 0n,
+      treeNumber: 1n,
+      value: 500n,
+    },
+  ]
+
+  const intent: SpendIntent = {
+    type: SpendingSolution.Simple,
+    changeAddress: '0zkaddressChange',
+    recipients: [
+      {
+        tokenAddress: upperAddr,
+        tokenType: TokenType.ERC20,
+        tokenSubID: ERC20_SUB_ID,
+        railgunAddress: '0zkaddressRecipient',
+        amount: 100n,
+      },
+    ],
+  }
+
+  const solutions = calculateSolution(intent, utxos)
+  assert.equal(solutions.length, 1, 'recipient grouped with utxo despite casing difference')
+  assert.equal(solutions[0]?.inputs.length, 1, 'utxo matched')
 })

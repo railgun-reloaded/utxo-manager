@@ -1,4 +1,4 @@
-import { groupInputsByTree } from '../primitives/utxos'
+import { groupInputsByTree } from '../utxos'
 
 import type { SolveParams, SolveResult, UTXOSolver } from './types'
 
