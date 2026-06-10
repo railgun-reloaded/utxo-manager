@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
 import type { Input, OutputSolution, SpendingSolutionInput } from '../src/index'
-import { NFTNotOwnedOrSpentError, SpendingSolution, TokenType, getSpendingSolution } from '../src/index'
+import { SpendingSolution, TokenType, getSpendingSolution } from '../src/index'
 
 const ERC20_TOKEN_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const ERC20_TOKEN_SUB_ID = `0x${'00'.repeat(32)}`
@@ -264,7 +264,7 @@ test('ERC721 happy path: returns the single matching input and no change output'
   }
 })
 
-test('ERC721 unowned: throws NFTNotOwnedOrSpentError', () => {
+test('ERC721 unowned: throws with collection and tokenId in message', () => {
   const ownedId = `0x${'00'.repeat(31)}01`
   const unownedId = `0x${'00'.repeat(31)}99`
   const inputs: Input[] = [
@@ -283,15 +283,16 @@ test('ERC721 unowned: throws NFTNotOwnedOrSpentError', () => {
       changeAddress: '0zkaddressChange',
     }),
     (err: unknown) => {
-      assert.ok(err instanceof NFTNotOwnedOrSpentError)
-      assert.equal(err.collection, NFT_COLLECTION)
-      assert.equal(err.tokenId, unownedId)
+      assert.ok(err instanceof Error)
+      assert.match(err.message, /NFT not owned or already spent/)
+      assert.match(err.message, new RegExp(NFT_COLLECTION))
+      assert.match(err.message, new RegExp(unownedId))
       return true
     }
   )
 })
 
-test('ERC721 wrong collection: throws NFTNotOwnedOrSpentError', () => {
+test('ERC721 wrong collection: throws with collection in message', () => {
   const ownedId = `0x${'00'.repeat(31)}01`
   const inputs: Input[] = [
     makeNFTInput(ownedId, { commitmentIndex: 0n, treeNumber: 1n }),
@@ -311,8 +312,9 @@ test('ERC721 wrong collection: throws NFTNotOwnedOrSpentError', () => {
       changeAddress: '0zkaddressChange',
     }),
     (err: unknown) => {
-      assert.ok(err instanceof NFTNotOwnedOrSpentError)
-      assert.equal(err.collection, otherCollection)
+      assert.ok(err instanceof Error)
+      assert.match(err.message, /NFT not owned or already spent/)
+      assert.match(err.message, new RegExp(otherCollection))
       return true
     }
   )

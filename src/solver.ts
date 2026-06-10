@@ -3,7 +3,6 @@ import type { SolveParams, SolveResult } from './interfaces'
 import { SolverKind } from './interfaces'
 import type { Input, OutputSolution, SpendingSolutionInput } from './models'
 import { SpendingSolution, TokenType } from './models'
-import { NFTNotOwnedOrSpentError, selectNFTInput } from './solutions/nft-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from './solutions/nullifiers'
 import { selectInputsForTarget } from './solutions/selection'
 import {
@@ -131,11 +130,12 @@ class GreedySolver extends BaseSolver<
   }
 
   /**
-   * Single-input selection for ERC721. `amount` must be `1n`.
+   * Single-input selection for ERC721. `amount` must be `1n`, the wallet
+   * must own a matching unspent input, and that input must itself have
+   * value `1n` per the RAILGUN protocol invariant.
    * @param solution - Spending solution input.
    * @param identityFiltered - Inputs filtered to the target token identity.
    * @returns Output solution with one input and one output.
-   * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
    */
   private solveERC721 (
     solution: SpendingSolutionInput,
@@ -145,10 +145,20 @@ class GreedySolver extends BaseSolver<
       throw new Error(`ERC721 spend amount must be 1, got ${solution.amount}`)
     }
 
-    const match = selectNFTInput(identityFiltered, {
-      collection: solution.tokenAddress,
-      tokenId: solution.tokenSubID,
-    })
+    if (identityFiltered.length === 0) {
+      throw new Error(
+        `NFT not owned or already spent: collection=${solution.tokenAddress}, tokenId=${solution.tokenSubID}`
+      )
+    }
+
+    const match = identityFiltered[0]
+    if (!match) {
+      throw new Error('ERC721 input missing after length check')
+    }
+
+    if (match.value !== 1n) {
+      throw new Error(`ERC721 input must have value of 1, got ${match.value}`)
+    }
 
     return {
       inputs: [match],
@@ -178,5 +188,5 @@ const getSpendingSolution = (solution: SpendingSolutionInput): OutputSolution | 
     | undefined
 }
 
-export { getSpendingSolution, GreedySolver, NFTNotOwnedOrSpentError, SpendingSolution }
+export { getSpendingSolution, GreedySolver, SpendingSolution }
 export type { Input, SpendingSolutionInput }

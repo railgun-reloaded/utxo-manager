@@ -3,7 +3,7 @@ import { test } from 'node:test'
 
 import { SpendingSolution, TokenType } from '../src'
 import type { SpendInput, SpendIntent } from '../src/spend'
-import { NFTNotOwnedOrSpentError, calculateSolution } from '../src/spend/solution'
+import { calculateSolution } from '../src/spend/solution'
 
 const ERC20_SUB_ID = `0x${'00'.repeat(32)}`
 const NFT_COLLECTION = '0x858Df9F84C73E01c55A2DFB95825401242a65D64'
@@ -211,9 +211,10 @@ test('RailgunSolver ERC721 unowned: solution is filtered out and result excludes
   assert.throws(
     () => calculateSolution(intent, utxos),
     (err: unknown) => {
-      assert.ok(err instanceof NFTNotOwnedOrSpentError)
-      assert.equal(err.collection, NFT_COLLECTION)
-      assert.equal(err.tokenId, unownedId)
+      assert.ok(err instanceof Error)
+      assert.match(err.message, /NFT not owned or already spent/)
+      assert.match(err.message, new RegExp(NFT_COLLECTION))
+      assert.match(err.message, new RegExp(unownedId))
       return true
     }
   )

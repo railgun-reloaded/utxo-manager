@@ -2,19 +2,73 @@ import { BaseSolver } from '../base-solver'
 import type { SolveParams, SolveResult } from '../interfaces'
 import { SolverKind } from '../interfaces'
 import { SpendingSolution, TokenType, tokenIdentityKey } from '../models'
-import { NFTNotOwnedOrSpentError, selectNFTInput } from '../solutions/nft-selection'
 import { MAX_INPUTS, isValidInputOutputCount } from '../solutions/nullifiers'
 import { selectInputsForTarget } from '../solutions/selection'
 import { filterZeroUTXOs, sortUTXOsByAscendingValue, sortUTXOsByDescendingValue } from '../solutions/utxos'
 
 import type {
-  BadSpendOutput,
   SpendInput,
   SpendIntent,
   SpendRecipient,
   SpendTransaction,
   SpendTreeOutput,
 } from './models'
+
+/**
+ * Recipients and inputs that share one token identity.
+ */
+type IdentityGroup = {
+  tokenType: TokenType
+  recipients: SpendRecipient[]
+  inputs: SpendInput[]
+}
+
+/**
+ * Bucket recipients and inputs by their full token identity triple.
+ * @param intent - Spending intent.
+ * @param utxos - Available UTXOs.
+ * @returns One group per distinct identity present in the intent.
+ */
+function groupByIdentity (intent: SpendIntent, utxos: SpendInput[]): IdentityGroup[] {
+  const byKey = new Map<string, IdentityGroup>()
+
+  for (const recipient of intent.recipients) {
+    const key = tokenIdentityKey(recipient)
+    const existing = byKey.get(key)
+    if (existing) {
+      existing.recipients.push(recipient)
+    } else {
+      byKey.set(key, { tokenType: recipient.tokenType, recipients: [recipient], inputs: [] })
+    }
+  }
+
+  for (const utxo of utxos) {
+    const group = byKey.get(tokenIdentityKey(utxo))
+    if (group) group.inputs.push(utxo)
+  }
+
+  return Array.from(byKey.values())
+}
+
+/**
+ * Halve recipient amounts into two parallel intents.
+ * @param recipients - Recipients to split.
+ * @returns Half and remainder recipient lists (same recipients, halved amounts).
+ */
+function splitRecipients (
+  recipients: SpendRecipient[]
+): { half: SpendRecipient[]; remainder: SpendRecipient[] } {
+  const half: SpendRecipient[] = []
+  const remainder: SpendRecipient[] = []
+
+  for (const recipient of recipients) {
+    const halved = recipient.amount / 2n
+    half.push({ ...recipient, amount: halved })
+    remainder.push({ ...recipient, amount: recipient.amount - halved })
+  }
+
+  return { half, remainder }
+}
 
 /**
  * Railgun spend solver (multi-recipient, single-token per solution).
@@ -24,10 +78,13 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   readonly name = SolverKind.Railgun
 
   /**
-   * Solve spending intent. Inputs and recipients are grouped by complete
-   * token identity `(tokenAddress, tokenType, tokenSubID)`.
-   * @param params - Solve parameters
-   * @returns Solution result
+   * Solve a spend intent. Groups recipients and inputs by complete token
+   * identity, then dispatches each group to the correct path: ERC721 has
+   * its own short-circuit, ERC20 tries a single-tree solution first and
+   * falls back to a recursive split if the spend can't be satisfied from
+   * one tree.
+   * @param params - Solve parameters.
+   * @returns Per-group spend solutions.
    */
   solve (params: SolveParams): SolveResult {
     if (params.kind !== SolverKind.Railgun) {
@@ -35,59 +92,80 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
     }
 
     const { intent, utxos } = params
-    const solutions: (SpendTreeOutput | BadSpendOutput)[] = []
+    const groups = groupByIdentity(intent, utxos)
 
-    const recipientsByIdentity = new Map<string, SpendRecipient[]>()
-    intent.recipients.forEach((recipient) => {
-      const key = tokenIdentityKey(recipient)
-      const bucket = recipientsByIdentity.get(key)
-      if (bucket) {
-        bucket.push(recipient)
-      } else {
-        recipientsByIdentity.set(key, [recipient])
+    return groups.flatMap((group) => {
+      if (group.tokenType === TokenType.ERC721) {
+        return [this.solveERC721Group(group)]
       }
+
+      if (group.tokenType !== TokenType.ERC20) {
+        throw new Error(`Unsupported token type: ${String(group.tokenType)}`)
+      }
+
+      const simple = this.solveERC20Group(intent, group)
+      if (simple) return [simple]
+
+      return this.solveComplexERC20Group(intent, group)
     })
-
-    recipientsByIdentity.forEach((recipients, identityKey) => {
-      const inputs = utxos.filter((utxo) => tokenIdentityKey(utxo) === identityKey)
-      const reference = recipients[0]
-      if (!reference) return
-
-      if (reference.tokenType === TokenType.ERC20) {
-        if (inputs.length === 0) {
-          solutions.push({ error: true, intent })
-          return
-        }
-        const result = this.solveERC20Group(intent, recipients, inputs)
-        solutions.push(result ?? { error: true, intent })
-        return
-      }
-
-      if (reference.tokenType === TokenType.ERC721) {
-        const result = this.solveERC721Group(recipients, inputs)
-        solutions.push(result)
-        return
-      }
-
-      throw new Error(`Unsupported token type: ${String(reference.tokenType)}`)
-    })
-
-    return this.resolveComplexSolutions(utxos, solutions)
   }
 
   /**
-   * Sum-to-target selection for an ERC20 recipient group.
-   * @param intent - Spending intent (provides change address and type).
-   * @param recipients - Recipients filtered to a single token identity.
-   * @param inputs - Inputs filtered to the same token identity.
-   * @returns Best tree solution, or `undefined` if no tree covers the amount.
+   * ERC721 path. Validates the protocol invariants, locates the matching
+   * unspent input, and emits a single-input single-output solution.
+   * @param group - Identity group (ERC721).
+   * @returns Tree output with one input and one output.
+   */
+  private solveERC721Group (group: IdentityGroup): SpendTreeOutput {
+    if (group.recipients.length !== 1) {
+      throw new Error(
+        `ERC721 group must have exactly one recipient, got ${group.recipients.length}`
+      )
+    }
+
+    const recipient = group.recipients[0]
+    if (!recipient) {
+      throw new Error('ERC721 recipient missing after length check')
+    }
+
+    if (recipient.amount !== 1n) {
+      throw new Error(`ERC721 recipient amount must be 1, got ${recipient.amount}`)
+    }
+
+    if (group.inputs.length === 0) {
+      throw new Error(
+        `NFT not owned or already spent: collection=${recipient.tokenAddress}, tokenId=${recipient.tokenSubID}`
+      )
+    }
+
+    const match = group.inputs[0]
+    if (!match) {
+      throw new Error('ERC721 input missing after length check')
+    }
+
+    if (match.value !== 1n) {
+      throw new Error(`ERC721 input must have value of 1, got ${match.value}`)
+    }
+
+    return {
+      inputs: [match],
+      outputs: [
+        { value: 1n, railgunAddress: recipient.railgunAddress },
+      ],
+    }
+  }
+
+  /**
+   * ERC20 simple path: try to satisfy the group's total from a single tree.
+   * @param intent - Spending intent (for change address and sort mode).
+   * @param group - Identity group (ERC20).
+   * @returns Tree output if a single tree can cover the amount, otherwise undefined.
    */
   private solveERC20Group (
     intent: SpendIntent,
-    recipients: SpendRecipient[],
-    inputs: SpendInput[]
+    group: IdentityGroup
   ): SpendTreeOutput | undefined {
-    const filtered = filterZeroUTXOs(inputs)
+    const filtered = filterZeroUTXOs(group.inputs)
     if (filtered.length === 0) return undefined
 
     const sortFn =
@@ -98,35 +176,23 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
 
     const { availableTrees, sortedInputs } = this.getTreeInputs(filtered, sortFn)
     const treeSolutions: SpendTreeOutput[] = []
-
-    const intentTotal = recipients.reduce((left, right) => left + right.amount, 0n)
+    const intentTotal = group.recipients.reduce((acc, r) => acc + r.amount, 0n)
 
     Object.entries(sortedInputs).forEach(([treeNumber, treeInputs]) => {
       const treeValue = availableTrees[treeNumber] ?? 0n
       if (treeValue < intentTotal) return
 
-      const selection = selectInputsForTarget(
-        treeInputs,
-        intentTotal,
-        MAX_INPUTS,
-        sortFn
-      )
+      const selection = selectInputsForTarget(treeInputs, intentTotal, MAX_INPUTS, sortFn)
       if (!selection) return
 
       const treeOutput: SpendTreeOutput = {
         inputs: selection.inputs,
-        outputs: recipients.map((recipient) => ({
-          value: recipient.amount,
-          railgunAddress: recipient.railgunAddress,
-        })),
+        outputs: group.recipients.map((r) => ({ value: r.amount, railgunAddress: r.railgunAddress })),
       }
 
-      const changeAmount = selection.total - intentTotal
-      if (changeAmount > 0n) {
-        treeOutput.outputs.push({
-          value: changeAmount,
-          railgunAddress: intent.changeAddress,
-        })
+      const change = selection.total - intentTotal
+      if (change > 0n) {
+        treeOutput.outputs.push({ value: change, railgunAddress: intent.changeAddress })
       }
 
       treeSolutions.push(treeOutput)
@@ -142,164 +208,55 @@ class RailgunSolver extends BaseSolver<SpendInput, SpendTransaction, SpendTreeOu
   }
 
   /**
-   * Single-input selection for an ERC721 recipient group. `recipients` must
-   * contain exactly one entry with `amount === 1n`.
-   * @param recipients - Recipients filtered to a single ERC721 identity.
-   * @param inputs - Inputs filtered to the same ERC721 identity.
-   * @returns Tree output with one input and one output.
-   * @throws {NFTNotOwnedOrSpentError} When no matching unspent input exists.
-   * @throws {Error} When the recipient count is not exactly one.
+   * ERC20 complex path: split recipient amounts in half and try each half
+   * independently. Subtracts inputs used by the first half before solving
+   * the second. Recurses on the remainder when its simple solve fails.
+   * @param intent - Spending intent.
+   * @param group - Identity group (ERC20).
+   * @returns Zero, one, or two tree outputs covering the original group.
    */
-  private solveERC721Group (
-    recipients: SpendRecipient[],
-    inputs: SpendInput[]
-  ): SpendTreeOutput {
-    if (recipients.length !== 1) {
-      throw new Error(
-        `ERC721 group must have exactly one recipient, got ${recipients.length}`
-      )
-    }
-
-    const recipient = recipients[0]
-    if (!recipient) {
-      throw new Error('ERC721 recipient missing after length check')
-    }
-
-    if (recipient.amount !== 1n) {
-      throw new Error(`ERC721 recipient amount must be 1, got ${recipient.amount}`)
-    }
-
-    const match = selectNFTInput(inputs, {
-      collection: recipient.tokenAddress,
-      tokenId: recipient.tokenSubID,
-    })
-
-    return {
-      inputs: [match],
-      outputs: [
-        {
-          value: 1n,
-          railgunAddress: recipient.railgunAddress,
-        },
-      ],
-    }
-  }
-
-  /**
-   * Resolve complex solutions by splitting.
-   * @param utxos - Available UTXOs
-   * @param solutions - Solutions to resolve
-   * @returns Resolved solutions
-   */
-  private resolveComplexSolutions (
-    utxos: SpendInput[],
-    solutions: (SpendTreeOutput | BadSpendOutput)[]
+  private solveComplexERC20Group (
+    intent: SpendIntent,
+    group: IdentityGroup
   ): SpendTreeOutput[] {
-    solutions.forEach((solution) => {
-      if (!('error' in solution)) return
+    const { half, remainder } = splitRecipients(group.recipients)
 
-      const failingIntent = solution.intent
-      const { splitIntent, remainderIntent } = this.splitIntent(failingIntent)
+    const firstGroup: IdentityGroup = { ...group, recipients: half }
+    const first = this.solveERC20Group(intent, firstGroup)
+    if (!first) return []
 
-      const firstResult = this.solve({
-        kind: SolverKind.Railgun,
-        intent: splitIntent,
-        utxos,
-        isComplex: true,
-      })
-
-      if (!firstResult || !Array.isArray(firstResult)) {
-        return
-      }
-
-      const usedInputs = new Set<string>()
-      firstResult.forEach((solutionPart) => {
-        solutionPart.inputs.forEach((input) => {
-          usedInputs.add(`${input.leafIndex}:${input.treeNumber}`)
-        })
-        solutions.push(solutionPart)
-      })
-
-      const remainingUtxos = utxos.filter(
-        (spend) => !usedInputs.has(`${spend.leafIndex}:${spend.treeNumber}`)
-      )
-      const secondResult = this.solve({
-        kind: SolverKind.Railgun,
-        intent: remainderIntent,
-        utxos: remainingUtxos,
-        isComplex: true,
-      })
-
-      if (!secondResult || !Array.isArray(secondResult)) {
-        return
-      }
-
-      secondResult.forEach((solutionPart) => {
-        solutions.push(solutionPart)
-      })
-    })
-
-    return solutions.filter((solution) => !('error' in solution)) as SpendTreeOutput[]
-  }
-
-  /**
-   * Split intent in half.
-   * @param intent - Intent to split
-   * @returns Split and remainder intents
-   */
-  private splitIntent (intent: SpendIntent): { splitIntent: SpendIntent; remainderIntent: SpendIntent } {
-    const splitIntent: SpendIntent = {
-      changeAddress: intent.changeAddress,
-      recipients: [],
-      type: intent.type,
+    const usedKeys = new Set<string>()
+    for (const input of first.inputs) {
+      usedKeys.add(`${input.leafIndex}:${input.treeNumber}`)
     }
-    const remainderIntent: SpendIntent = {
-      changeAddress: intent.changeAddress,
-      recipients: [],
-      type: intent.type,
-    }
+    const remainingInputs = group.inputs.filter(
+      (u) => !usedKeys.has(`${u.leafIndex}:${u.treeNumber}`)
+    )
 
-    intent.recipients.forEach((recipient) => {
-      const halved = recipient.amount / 2n
-      splitIntent.recipients.push({
-        tokenAddress: recipient.tokenAddress,
-        tokenType: recipient.tokenType,
-        tokenSubID: recipient.tokenSubID,
-        railgunAddress: recipient.railgunAddress,
-        amount: halved,
-      })
-      remainderIntent.recipients.push({
-        tokenAddress: recipient.tokenAddress,
-        tokenType: recipient.tokenType,
-        tokenSubID: recipient.tokenSubID,
-        railgunAddress: recipient.railgunAddress,
-        amount: recipient.amount - halved,
-      })
-    })
+    const secondGroup: IdentityGroup = { ...group, recipients: remainder, inputs: remainingInputs }
+    const secondSimple = this.solveERC20Group(intent, secondGroup)
+    if (secondSimple) return [first, secondSimple]
 
-    return { splitIntent, remainderIntent }
+    return [first, ...this.solveComplexERC20Group(intent, secondGroup)]
   }
 }
 
 const defaultRailgunSolver = new RailgunSolver()
 
 /**
- * Calculate solution for spending intent.
- * @param intent - Spending intent
- * @param utxos - Available UTXOs
- * @param isComplex - Whether complex solution
- * @returns Solution outputs
+ * Calculate solutions for a spend intent.
+ * @param intent - Spending intent.
+ * @param utxos - Available UTXOs.
+ * @returns One or more per-group spend solutions.
  */
 const calculateSolution = (
   intent: SpendIntent,
-  utxos: SpendInput[],
-  isComplex = false
+  utxos: SpendInput[]
 ): SpendTreeOutput[] => {
   const result = defaultRailgunSolver.solve({
     kind: SolverKind.Railgun,
     intent,
     utxos,
-    isComplex,
   })
 
   if (!result || !Array.isArray(result)) {
@@ -309,4 +266,4 @@ const calculateSolution = (
   return result
 }
 
-export { calculateSolution, NFTNotOwnedOrSpentError, RailgunSolver }
+export { calculateSolution, RailgunSolver }
