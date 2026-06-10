@@ -15,7 +15,7 @@ import {
   serializeState,
   setSyncedBlock
 } from '../../src/state'
-import type { UTXO } from '../../src/state/models'
+import type { UTXO } from '../../src/state/types'
 
 /**
  * Creates a mock UTXO for testing purposes.

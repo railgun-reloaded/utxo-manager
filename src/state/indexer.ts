@@ -1,6 +1,6 @@
 import type { NullifierEvent } from './events'
 import { applyNullifierEvents as applyNullifierEventsToState, handleReorg as handleReorgInState } from './events'
-import type { SerializedUTXOState, UTXO, UTXOState } from './models'
+import type { SerializedUTXOState, UTXO, UTXOState } from './types'
 
 import {
   addUTXO as addUTXOToState,

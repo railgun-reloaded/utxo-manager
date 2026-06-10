@@ -1,7 +1,7 @@
 import { bytesToHex } from '@railgun-reloaded/bytes'
 
-import type { UTXOState } from './models'
 import { applyNullifierUpdates } from './nullifiers'
+import type { UTXOState } from './types'
 
 /**
  * Represents a nullifier event from the blockchain.

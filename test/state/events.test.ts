@@ -6,7 +6,7 @@ import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
 import { addUTXO, addUTXOs, createEmptyState } from '../../src/state'
 import type { NullifierEvent } from '../../src/state/events'
 import { applyNullifierEvents, handleReorg } from '../../src/state/events'
-import type { UTXO } from '../../src/state/models'
+import type { UTXO } from '../../src/state/types'
 
 /**
  * Creates a mock UTXO for testing purposes.
