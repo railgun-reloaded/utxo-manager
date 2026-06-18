@@ -1,14 +1,14 @@
-import { MAX_INPUTS, isValidInputOutputCount } from '../nullifiers'
-import { selectInputsForTarget } from '../selection'
+import { MAX_INPUTS, isValidInputOutputCount } from '../nullifiers.js'
+import { selectInputsForTarget } from '../selection.js'
 import {
   filterZeroUTXOs,
   sortUTXOsByAscendingValue,
   sortUTXOsByDescendingValue,
-} from '../utxos'
+} from '../utxos.js'
 
-import { BaseSolver } from './base'
-import type { SolveParams, SolveResult, TokenIdentity } from './types'
-import { SolverKind, SpendingSolution, TokenType } from './types'
+import { BaseSolver } from './base.js'
+import type { SolveParams, SolveResult, TokenIdentity } from './types.js'
+import { SolverKind, SpendingSolution, TokenType } from './types.js'
 
 /**
  * UTXO input to the greedy solver.

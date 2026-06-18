@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import type { Input, OutputSolution, SpendingSolutionInput } from '../src/index'
-import { SpendingSolution, TokenType, getSpendingSolution } from '../src/index'
+import type { Input, OutputSolution, SpendingSolutionInput } from '../src/index.js'
+import { SpendingSolution, TokenType, getSpendingSolution } from '../src/index.js'
 
 const ERC20_TOKEN_ADDRESS = '0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48'
 const ERC20_TOKEN_SUB_ID = `0x${'00'.repeat(32)}`

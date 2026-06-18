@@ -1,6 +1,6 @@
 import { bytesToHex } from '@railgun-reloaded/bytes'
 
-import type { UTXO, UTXOState } from './types'
+import type { UTXO, UTXOState } from './types.js'
 
 export interface NullifierUpdate {
   nullifier: Uint8Array

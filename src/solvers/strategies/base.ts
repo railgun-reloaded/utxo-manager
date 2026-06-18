@@ -1,6 +1,6 @@
-import { groupInputsByTree } from '../utxos'
+import { groupInputsByTree } from '../utxos.js'
 
-import type { SolveParams, SolveResult, UTXOSolver } from './types'
+import type { SolveParams, SolveResult, UTXOSolver } from './types.js'
 
 type ValueTreeInput = {
   value: bigint

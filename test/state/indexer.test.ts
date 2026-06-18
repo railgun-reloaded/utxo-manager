@@ -3,8 +3,8 @@ import { describe, it } from 'node:test'
 
 import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
 
-import type { NullifierEvent, UTXO } from '../../src'
-import { NullifierIndexer } from '../../src'
+import type { NullifierEvent, UTXO } from '../../src/index.js'
+import { NullifierIndexer } from '../../src/index.js'
 
 /**
  * Creates a mock UTXO for testing purposes.

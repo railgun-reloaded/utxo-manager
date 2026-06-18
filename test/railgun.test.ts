@@ -1,9 +1,9 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import type { SpendInput, SpendIntent } from '../src'
-import { SpendingSolution, TokenType } from '../src'
-import { calculateSolution } from '../src/solvers/strategies/railgun'
+import type { SpendInput, SpendIntent } from '../src/index.js'
+import { SpendingSolution, TokenType } from '../src/index.js'
+import { calculateSolution } from '../src/solvers/strategies/railgun.js'
 
 const ERC20_SUB_ID = `0x${'00'.repeat(32)}`
 const NFT_COLLECTION = '0x858Df9F84C73E01c55A2DFB95825401242a65D64'

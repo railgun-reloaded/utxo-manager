@@ -1,5 +1,5 @@
-import type { OutputSolution, SpendingSolutionInput } from './greedy'
-import type { SpendInput, SpendIntent, SpendTreeOutput } from './railgun'
+import type { OutputSolution, SpendingSolutionInput } from './greedy.js'
+import type { SpendInput, SpendIntent, SpendTreeOutput } from './railgun.js'
 
 /**
  * Token-class enum.

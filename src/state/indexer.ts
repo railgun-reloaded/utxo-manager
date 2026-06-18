@@ -1,6 +1,6 @@
-import type { NullifierEvent } from './events'
-import { applyNullifierEvents as applyNullifierEventsToState, handleReorg as handleReorgInState } from './events'
-import type { SerializedUTXOState, UTXO, UTXOState } from './types'
+import type { NullifierEvent } from './events.js'
+import { applyNullifierEvents as applyNullifierEventsToState, handleReorg as handleReorgInState } from './events.js'
+import type { SerializedUTXOState, UTXO, UTXOState } from './types.js'
 
 import {
   addUTXO as addUTXOToState,
@@ -12,7 +12,7 @@ import {
   isSpent as isSpentInState,
   serializeState,
   setSyncedBlock as setSyncedBlockInState
-} from './index'
+} from './index.js'
 
 /**
  * NullifierIndexer manages UTXO state and tracks nullifier spends.

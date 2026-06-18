@@ -3,10 +3,10 @@ import { describe, it } from 'node:test'
 
 import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
 
-import { addUTXO, addUTXOs, createEmptyState } from '../../src/state'
-import type { NullifierEvent } from '../../src/state/events'
-import { applyNullifierEvents, handleReorg } from '../../src/state/events'
-import type { UTXO } from '../../src/state/types'
+import type { NullifierEvent } from '../../src/state/events.js'
+import { applyNullifierEvents, handleReorg } from '../../src/state/events.js'
+import { addUTXO, addUTXOs, createEmptyState } from '../../src/state/index.js'
+import type { UTXO } from '../../src/state/types.js'
 
 /**
  * Creates a mock UTXO for testing purposes.

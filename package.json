@@ -12,6 +12,7 @@
   },
   "license": "MIT",
   "author": "RAILGUN Project Contributors",
+  "type": "module",
   "main": "src/index.js",
   "types": "src/index.d.ts",
   "directories": {

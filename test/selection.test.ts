@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
 
-import { selectInputsForTarget } from '../src'
+import { selectInputsForTarget } from '../src/index.js'
 
 type TestInput = {
   value: bigint;

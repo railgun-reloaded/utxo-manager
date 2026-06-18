@@ -1,7 +1,7 @@
 import { bytesToHex, hexToBytes } from '@railgun-reloaded/bytes'
 
-import { applyNullifierUpdates } from './nullifiers'
-import type { SerializedUTXO, SerializedUTXOState, UTXO, UTXOState } from './types'
+import { applyNullifierUpdates } from './nullifiers.js'
+import type { SerializedUTXO, SerializedUTXOState, UTXO, UTXOState } from './types.js'
 
 /**
  * Creates an empty UTXO state.
@@ -247,4 +247,4 @@ export {
   serializeUTXO,
   setSyncedBlock
 }
-export type * from './types'
+export type * from './types.js'

@@ -14,8 +14,8 @@ import {
   markSpent,
   serializeState,
   setSyncedBlock
-} from '../../src/state'
-import type { UTXO } from '../../src/state/types'
+} from '../../src/state/index.js'
+import type { UTXO } from '../../src/state/types.js'
 
 /**
  * Creates a mock UTXO for testing purposes.
